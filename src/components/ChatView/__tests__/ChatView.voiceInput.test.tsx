@@ -222,7 +222,6 @@ describe('ChatView voice mode', () => {
 
   beforeEach(() => {
     (voiceModeStore as any).reset();
-    voiceModeStore.setUnlockOverride(true);
     runInAction(() => {
       modelStore.deviceTier = 'high';
       asrStore.captureState = 'idle';

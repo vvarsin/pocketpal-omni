@@ -14,7 +14,6 @@ describe('VoiceModeButton', () => {
       modelStore.deviceTier = 'high';
       modelStore.isContextLoading = false;
     });
-    voiceModeStore.setUnlockOverride(true);
   });
 
   it('renders nothing on a device that cannot run voice mode', () => {
@@ -40,7 +39,7 @@ describe('VoiceModeButton', () => {
     expect(queryByTestId('voice-mode-button')).toBeNull();
   });
 
-  it('starts voice mode on press, without a lock when unlocked', () => {
+  it('starts voice mode on press, with no lock', () => {
     const onPress = jest.fn();
     const {getByTestId, queryByTestId} = render(
       <VoiceModeButton onPress={onPress} />,
@@ -50,23 +49,7 @@ describe('VoiceModeButton', () => {
     expect(queryByTestId('voice-mode-lock')).toBeNull();
   });
 
-  it('shows a Plus badge when locked, says what it opens, and still takes the tap', () => {
-    voiceModeStore.setUnlockOverride(false);
-    const onPress = jest.fn();
-    const {getByTestId} = render(<VoiceModeButton onPress={onPress} />);
-    const button = getByTestId('voice-mode-button');
-    expect(getByTestId('voice-mode-lock')).toBeTruthy();
-    expect(button.props.accessibilityLabel).toBe(
-      'Hands-free voice, PocketPal Plus',
-    );
-    expect(button.props.accessibilityHint).toBe(
-      'Opens a short preview. Typing and dictation stay free.',
-    );
-    fireEvent.press(button);
-    expect(onPress).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the primary look and no hint when unlocked', () => {
+  it('keeps the primary look and no hint', () => {
     const {getByTestId} = render(<VoiceModeButton onPress={jest.fn()} />);
     const button = getByTestId('voice-mode-button');
     expect(button.props.accessibilityLabel).toBe('Start voice mode');

@@ -5,7 +5,6 @@ import {Platform} from 'react-native';
 import {voiceModeDeviceSupported} from '../../src/services/voice/deviceGate';
 
 import {mockModelStore} from './modelStore';
-import {mockPurchaseStore} from './purchaseStore';
 
 type VoicePhase =
   | 'closed'
@@ -14,10 +13,6 @@ type VoicePhase =
   | 'transcribing'
   | 'thinking'
   | 'speaking';
-type VoiceEntitlementSource = {
-  isUnlocked(): boolean;
-  openPaywall(opts: {onUnlocked: () => void}): void;
-};
 type VoiceError = 'transcribe_failed' | 'reply_failed' | 'speech_failed';
 
 class MockVoiceModeStore {
@@ -25,14 +20,12 @@ class MockVoiceModeStore {
   micMuted = false;
   presentation: 'full' | 'bar' = 'full';
   lastError: VoiceError | null = null;
-  unlockOverride: boolean | null = null;
   userVoiceModeOverride: boolean | null = null;
 
   setPhase: jest.Mock;
   setMicMuted: jest.Mock;
   setLastError: jest.Mock;
   setPresentation: jest.Mock;
-  setUnlockOverride: jest.Mock;
   setUserVoiceModeOverride: jest.Mock;
 
   constructor() {
@@ -41,7 +34,6 @@ class MockVoiceModeStore {
       setMicMuted: false,
       setLastError: false,
       setPresentation: false,
-      setUnlockOverride: false,
       setUserVoiceModeOverride: false,
     });
     this.setUserVoiceModeOverride = jest.fn((enabled: boolean) => {
@@ -76,11 +68,6 @@ class MockVoiceModeStore {
         this.presentation = presentation;
       });
     });
-    this.setUnlockOverride = jest.fn((unlocked: boolean | null) => {
-      runInAction(() => {
-        this.unlockOverride = unlocked;
-      });
-    });
   }
 
   get deviceSupported(): boolean {
@@ -99,34 +86,15 @@ class MockVoiceModeStore {
     return this.phase !== 'closed' && this.presentation === 'full';
   }
 
-  get isUnlocked(): boolean {
-    return mockVoiceEntitlement.source.isUnlocked();
-  }
-
   reset() {
     runInAction(() => {
       this.phase = 'closed';
       this.micMuted = false;
       this.presentation = 'full';
       this.lastError = null;
-      this.unlockOverride = null;
       this.userVoiceModeOverride = null;
     });
   }
 }
 
 export const mockVoiceModeStore = new MockVoiceModeStore();
-
-const defaultSource = {
-  isUnlocked: () =>
-    mockVoiceModeStore.unlockOverride ?? mockPurchaseStore.plusUnlocked,
-  openPaywall: jest.fn(),
-};
-
-export const mockVoiceEntitlement = {
-  source: defaultSource as VoiceEntitlementSource,
-  register: jest.fn((source: VoiceEntitlementSource) => {
-    mockVoiceEntitlement.source = source;
-  }),
-  defaultSource,
-};

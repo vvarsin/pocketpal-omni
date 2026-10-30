@@ -38,20 +38,6 @@ describe('runVoiceCommand', () => {
   });
 
   it.each([
-    ['unlock::on', true],
-    ['unlock::off', false],
-  ])('%s sets the unlock override', async (cmd, unlocked) => {
-    await runVoiceCommand(cmd);
-    expect(voiceModeStore.isUnlocked).toBe(unlocked);
-  });
-
-  it('unlock::plus clears the override so the Plus entitlement decides', async () => {
-    await runVoiceCommand('unlock::on');
-    await runVoiceCommand('unlock::plus');
-    expect(voiceModeStore.unlockOverride).toBeNull();
-  });
-
-  it.each([
     ['gate::on', true],
     ['gate::off', false],
   ])('%s moves the device tier across the gate', async (cmd, supported) => {

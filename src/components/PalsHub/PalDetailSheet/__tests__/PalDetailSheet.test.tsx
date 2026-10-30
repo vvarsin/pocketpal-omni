@@ -1,16 +1,13 @@
 import React from 'react';
 import {Alert, Linking} from 'react-native';
-import {runInAction} from 'mobx';
 import {render, fireEvent, waitFor} from '../../../../../jest/test-utils';
 
 import {PalDetailSheet} from '../PalDetailSheet';
 import {authService, palsHubService} from '../../../../services';
-import {palStore, purchaseStore} from '../../../../store';
+import {palStore} from '../../../../store';
 import {
   createPalsHubPal,
   mockPalsHubPal,
-  mockPremiumPalsHubPal,
-  mockOwnedPremiumPal,
 } from '../../../../../jest/fixtures/pals';
 
 // Mock Sheet component
@@ -75,9 +72,6 @@ describe('PalDetailSheet', () => {
     (palStore.downloadPalsHubPal as jest.Mock).mockResolvedValue(undefined);
     // Default to logged-out; authenticated tests opt in explicitly.
     (authService as any).isAuthenticated = false;
-    runInAction(() => {
-      (purchaseStore as any).reset();
-    });
     // Reset defaultProps with a fresh mock for each test
     defaultProps = {
       pal: mockPalsHubPal,
@@ -277,115 +271,6 @@ describe('PalDetailSheet', () => {
     });
   });
 
-  describe('Premium Pal Display', () => {
-    it('shows premium label for premium pals', async () => {
-      (palsHubService.getPal as jest.Mock).mockResolvedValue(
-        mockPremiumPalsHubPal,
-      );
-
-      const {getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={mockPremiumPalsHubPal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('pal-label-premium')).toBeTruthy();
-      });
-    });
-
-    it('does not show download button for unowned premium pals', async () => {
-      const {queryByText} = render(
-        <PalDetailSheet {...defaultProps} pal={mockPremiumPalsHubPal} />,
-      );
-
-      await waitFor(() => {
-        expect(queryByText(/Download/i)).toBeNull();
-        expect(queryByText(/Get Free/i)).toBeNull();
-      });
-    });
-
-    it('shows informational text for unowned premium pals', async () => {
-      const {getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={mockPremiumPalsHubPal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('sheet-actions')).toBeTruthy();
-      });
-    });
-
-    it('hides system prompt for unowned premium pals', async () => {
-      const {queryByText} = render(
-        <PalDetailSheet {...defaultProps} pal={mockPremiumPalsHubPal} />,
-      );
-
-      await waitFor(() => {
-        expect(
-          queryByText('You are a helpful assistant from PalsHub.'),
-        ).toBeNull();
-      });
-    });
-
-    it('shows premium pal message for unowned premium pals', async () => {
-      const {getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={mockPremiumPalsHubPal} />,
-      );
-
-      await waitFor(() => {
-        // Should show some premium message (exact text depends on l10n)
-        expect(getByTestId('sheet-actions')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Owned Premium Pal Actions', () => {
-    beforeEach(() => {
-      (palsHubService.getPal as jest.Mock).mockResolvedValue(
-        mockOwnedPremiumPal,
-      );
-    });
-
-    it('shows Owned instead of Buy for owned premium pals', async () => {
-      const {getByTestId, queryByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={mockOwnedPremiumPal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('owned-button')).toBeTruthy();
-      });
-      expect(queryByTestId('buy-button')).toBeNull();
-      expect(queryByTestId('download-button')).toBeNull();
-    });
-
-    it('downloads an account-owned premium pal from Owned', async () => {
-      const {getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={mockOwnedPremiumPal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('owned-button')).toBeTruthy();
-      });
-      fireEvent.press(getByTestId('owned-button'));
-
-      await waitFor(() => {
-        expect(palStore.downloadPalsHubPal).toHaveBeenCalledWith(
-          mockOwnedPremiumPal,
-        );
-      });
-    });
-
-    it('shows system prompt for owned premium pals', async () => {
-      const {getByText} = render(
-        <PalDetailSheet {...defaultProps} pal={mockOwnedPremiumPal} />,
-      );
-
-      await waitFor(() => {
-        expect(
-          getByText('You are a helpful assistant from PalsHub.'),
-        ).toBeTruthy();
-      });
-    });
-  });
-
   describe('Edge Cases', () => {
     it('handles pal without creator gracefully', async () => {
       const palWithoutCreator = createPalsHubPal({
@@ -530,137 +415,6 @@ describe('PalDetailSheet', () => {
 
       // Resolve the download
       resolveDownload!();
-    });
-  });
-
-  describe('Purchase footer', () => {
-    const buyablePal = {
-      ...mockPremiumPalsHubPal,
-      store_product_id: 'pal.abc',
-      iap_enabled: {ios: true, android: true},
-      model_reference: {
-        repo_id: 'owner/repo',
-        filename: 'story-model.gguf',
-        author: 'owner',
-        downloadUrl: 'https://example.com/story-model.gguf',
-        size: 1.2 * 10 ** 9,
-      },
-    };
-
-    beforeEach(() => {
-      (palsHubService.getPal as jest.Mock).mockResolvedValue(buyablePal);
-    });
-
-    it('renders Buy with the store price when the Pal is purchasable', async () => {
-      runInAction(() => {
-        purchaseStore.availability = 'ready';
-        purchaseStore.products.set('pal.abc', {
-          productId: 'pal.abc',
-          displayPrice: '¥450',
-        });
-      });
-
-      const {getByTestId, getByText} = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('buy-button')).toBeTruthy();
-      });
-      expect(getByText('¥450')).toBeTruthy();
-    });
-
-    it('renders no footer action when the Pal is not purchasable', async () => {
-      const {queryByTestId, getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('sheet-actions')).toBeTruthy();
-      });
-      expect(queryByTestId('buy-button')).toBeNull();
-      expect(queryByTestId('pal-purchase-footer')).toBeNull();
-    });
-
-    it('ends the scroll content with the recommended model and its size', async () => {
-      const {getByTestId, getByText} = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('pal-recommended-model')).toBeTruthy();
-      });
-      expect(getByText(/story-model/)).toBeTruthy();
-      expect(getByText(/1\.2 GB/)).toBeTruthy();
-    });
-
-    it('shows a sample exchange only when the API supplies one', async () => {
-      const first = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-      await waitFor(() => {
-        expect(first.getByTestId('pal-recommended-model')).toBeTruthy();
-      });
-      expect(first.queryByTestId('pal-sample-exchange')).toBeNull();
-      first.unmount();
-
-      (palsHubService.getPal as jest.Mock).mockResolvedValue({
-        ...buyablePal,
-        sample_exchange: [
-          {role: 'user', text: 'Tell me a story'},
-          {role: 'pal', text: 'Once upon a time'},
-        ],
-      });
-      const second = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-      await waitFor(() => {
-        expect(second.getByText('Once upon a time')).toBeTruthy();
-      });
-    });
-
-    it('keeps the purchase state when the sheet is closed', async () => {
-      runInAction(() => {
-        purchaseStore.records['palshub-pal-2'] = {
-          palId: 'palshub-pal-2',
-          source: 'store',
-          productId: 'pal.abc',
-          transactionIds: [],
-          status: 'unlocking',
-          title: 'Premium PalsHub Pal',
-          updatedAt: 1,
-        };
-      });
-      const {getByTestId} = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-      await waitFor(() => {
-        expect(getByTestId('purchase-unlocking')).toBeTruthy();
-      });
-
-      fireEvent.press(getByTestId('sheet-close-button'));
-
-      expect(defaultProps.onClose).toHaveBeenCalled();
-      expect(purchaseStore.recordFor('palshub-pal-2')?.status).toBe(
-        'unlocking',
-      );
-    });
-
-    it('never renders web purchase wording', async () => {
-      runInAction(() => {
-        purchaseStore.availability = 'ready';
-        purchaseStore.products.set('pal.abc', {
-          productId: 'pal.abc',
-          displayPrice: '4,99 €',
-        });
-      });
-      const {getByTestId, queryByText} = render(
-        <PalDetailSheet {...defaultProps} pal={buyablePal} />,
-      );
-      await waitFor(() => {
-        expect(getByTestId('buy-button')).toBeTruthy();
-      });
-      expect(queryByText(/palshub\.ai|website|\bweb\b|check-?out/i)).toBeNull();
     });
   });
 });

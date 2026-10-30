@@ -45,7 +45,6 @@ describe('accountApi', () => {
       expect(sentInit().method).toBe('POST');
       expect(sentInit().headers).toEqual({
         'Content-Type': 'application/json',
-        'X-IAP-Capable': '1',
         'X-Client-Platform': Platform.OS,
         Authorization: 'Bearer token-1',
       });

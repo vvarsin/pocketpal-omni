@@ -18,7 +18,6 @@ const mockPalsHubService = {
   getTags: jest.fn().mockResolvedValue([]),
   downloadPalImage: jest.fn().mockResolvedValue(null),
   getLibrary: jest.fn().mockResolvedValue(null),
-  checkPalOwnership: jest.fn().mockResolvedValue(null),
 
   // Private methods (mocked for completeness)
   buildQuery: jest.fn().mockReturnValue({}),

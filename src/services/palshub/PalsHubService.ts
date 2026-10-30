@@ -1,4 +1,3 @@
-import {authService} from './AuthService';
 import {palsHubApiService} from './PalsHubApiService';
 
 import type {
@@ -58,34 +57,6 @@ class PalsHubService {
   // Get popular tags - Using REST API (extracted from pals data)
   async getTags(query: TagsQuery = {}): Promise<TagsResponse> {
     return palsHubApiService.getTags(query);
-  }
-
-  // Check if user owns a Pal - Using REST API
-  async checkPalOwnership(
-    palId: string,
-  ): Promise<{owned: boolean; purchase_date?: string}> {
-    try {
-      if (!authService.user?.id) {
-        return {owned: false};
-      }
-
-      // Get pal details which includes ownership information
-      const pal = await this.getPal(palId);
-
-      return {
-        owned: pal.is_owned || false,
-        purchase_date: undefined, // Purchase date not available in current API
-      };
-    } catch (error) {
-      if (error instanceof PalsHubError) {
-        throw error;
-      }
-      throw new PalsHubError(
-        `Failed to check ownership: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-      );
-    }
   }
 }
 

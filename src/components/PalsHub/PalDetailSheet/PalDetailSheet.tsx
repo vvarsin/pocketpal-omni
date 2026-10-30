@@ -8,12 +8,10 @@ import {Surface} from '../../ui';
 import {StarIcon, DownloadIcon, UserIcon} from '../../../assets/icons';
 
 import {useTheme} from '../../../hooks';
-import {formatBytes, L10nContext} from '../../../utils';
-import {getDisplayNameFromFilename} from '../../../utils/formatters';
+import {L10nContext} from '../../../utils';
 import {getFullThumbnailUri} from '../../../utils/imageUtils';
 
 import {Sheet} from '../../Sheet';
-import {PalPurchaseFooter} from '../PalPurchaseFooter';
 import {createStyles} from './styles';
 
 import {palsHubService} from '../../../services';
@@ -32,11 +30,10 @@ interface PalDetailSheetProps {
   pal: PalsHubPal | null;
   isVisible: boolean;
   onClose: () => void;
-  onSignInPress?: () => void;
 }
 
 export const PalDetailSheet: React.FC<PalDetailSheetProps> = observer(
-  ({pal, isVisible, onClose, onSignInPress}) => {
+  ({pal, isVisible, onClose}) => {
     const theme = useTheme();
     const l10n = useContext(L10nContext);
     const styles = createStyles(theme);
@@ -288,20 +285,6 @@ export const PalDetailSheet: React.FC<PalDetailSheetProps> = observer(
               ))}
             </View>
           )}
-
-          {displayPal.price_cents > 0 && displayPal.model_reference && (
-            <View style={styles.section} testID="pal-recommended-model">
-              <Text style={styles.sectionTitle}>
-                {l10n.palsScreen.purchase.recommendedModel}
-              </Text>
-              <Text style={styles.description}>
-                {getDisplayNameFromFilename(
-                  displayPal.model_reference.filename,
-                )}{' '}
-                · {formatBytes(displayPal.model_reference.size)}
-              </Text>
-            </View>
-          )}
         </Sheet.ScrollView>
 
         <Sheet.Actions>
@@ -334,14 +317,6 @@ export const PalDetailSheet: React.FC<PalDetailSheetProps> = observer(
                 </Button>
               )}
             </>
-          )}
-
-          {displayPal.price_cents > 0 && (
-            <PalPurchaseFooter
-              pal={displayPal}
-              onClose={onClose}
-              onSignInPress={onSignInPress}
-            />
           )}
         </Sheet.Actions>
       </Sheet>

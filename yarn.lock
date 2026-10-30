@@ -8372,11 +8372,6 @@ react-native-haptic-feedback@^2.3.3:
   resolved "https://registry.yarnpkg.com/react-native-haptic-feedback/-/react-native-haptic-feedback-2.3.3.tgz#88b6876e91399a69bd1b551fe1681b2f3dc1214e"
   integrity sha512-svS4D5PxfNv8o68m9ahWfwje5NqukM3qLS48+WTdhbDkNUkOhP9rDfDSRHzlhk4zq+ISjyw95EhLeh8NkKX5vQ==
 
-react-native-iap@16.6.2:
-  version "16.6.2"
-  resolved "https://registry.yarnpkg.com/react-native-iap/-/react-native-iap-16.6.2.tgz#864c56d36ada71a77ce70e55d2cc8fc2d5874a33"
-  integrity sha512-/eDhoUt+1sIOccRahmgAl0IM1ZqpuNkPjsoWA/aJvMLOfWEVI2/q2wQeFj/Z6S0C/WzHIMGQk3jKptstYUWdqQ==
-
 react-native-image-picker@^8.2.1:
   version "8.2.1"
   resolved "https://registry.yarnpkg.com/react-native-image-picker/-/react-native-image-picker-8.2.1.tgz#1ac7826563cbaa5d5298d9f2acc53c69805e5393"

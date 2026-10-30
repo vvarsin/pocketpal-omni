@@ -6,7 +6,7 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
-import {Button, Text} from 'react-native-paper';
+import {Text} from 'react-native-paper';
 import {observer} from 'mobx-react-lite';
 
 import {PlusIcon} from '../../assets/icons';
@@ -48,7 +48,7 @@ import {
 
 // Services and stores
 import {authService, syncService} from '../../services';
-import {palStore, purchaseStore, Pal} from '../../store';
+import {palStore, Pal} from '../../store';
 import {hasVideoCapability} from '../../utils/pal-capabilities';
 
 import type {PalsHubPal} from '../../types/palshub';
@@ -58,8 +58,7 @@ const SectionGrid: React.FC<{
   columns: number;
   cardWidth: number;
   onPalPress: (pal: PalGridItem) => void;
-  onUpdatePress: (palshubId: string) => void;
-}> = ({section, columns, cardWidth, onPalPress, onUpdatePress}) => (
+}> = ({section, columns, cardWidth, onPalPress}) => (
   <View>
     {section.title ? <SectionDivider label={section.title} /> : null}
     {chunkIntoRows(section.data, columns).map(row => (
@@ -68,7 +67,6 @@ const SectionGrid: React.FC<{
         row={row}
         cardWidth={cardWidth}
         onPalPress={onPalPress}
-        onUpdatePress={onUpdatePress}
       />
     ))}
   </View>
@@ -206,16 +204,6 @@ export const PalsScreen: React.FC = observer(() => {
     });
   };
 
-  const handleUpdatePress = (palshubId: string) => {
-    const pal =
-      palStore.cachedPalsHubPals.find(hubPal => hubPal.id === palshubId) ??
-      purchaseStore.recordFor(palshubId)?.pendingUpdate?.pal;
-    if (pal) {
-      setSelectedPal(pal);
-      setShowPalDetail(true);
-    }
-  };
-
   const handleEditPal = (pal: Pal) => {
     const preparedPal = preparePalForEditing(pal);
     setCurrentPal(preparedPal);
@@ -228,8 +216,6 @@ export const PalsScreen: React.FC = observer(() => {
       palStore.getDownloadedPalsHubPals(),
       authService.isAuthenticated ? palStore.userLibrary : [],
       authService.isAuthenticated ? palStore.userCreatedPals : [],
-      palStore.cachedPalsHubPals,
-      Object.values(purchaseStore.records),
     );
 
   // Get filtered data based on current filter and search
@@ -244,8 +230,8 @@ export const PalsScreen: React.FC = observer(() => {
 
     switch (activeFilter) {
       case 'my-pals': {
-        const {installed, purchased, library} = ownedPals();
-        return [...installed, ...purchased, ...library];
+        const {installed, library} = ownedPals();
+        return [...installed, ...library];
       }
       case 'local':
         return [...localPals, ...downloadedPals];
@@ -257,14 +243,10 @@ export const PalsScreen: React.FC = observer(() => {
             p.categories?.some(c => c.name.toLowerCase().includes('video')),
           ),
         ];
-      case 'free':
-        return [...localPals, ...hubPals.filter(p => p.price_cents === 0)];
-      case 'premium':
-        return hubPals.filter(p => p.price_cents > 0);
       case 'all':
       default: {
-        const {installed, purchased, library} = ownedPals();
-        return [...installed, ...purchased, ...library, ...hubPals];
+        const {installed, library} = ownedPals();
+        return [...installed, ...library, ...hubPals];
       }
     }
   };
@@ -283,12 +265,12 @@ export const PalsScreen: React.FC = observer(() => {
       case 'all':
       case 'my-pals': {
         const sections: Array<{title: string; data: (PalsHubPal | Pal)[]}> = [];
-        const {installed, purchased, library} = ownedPals();
+        const {installed, library} = ownedPals();
 
-        if (installed.length + purchased.length > 0) {
+        if (installed.length > 0) {
           sections.push({
             title: l10n.palsScreen.sectionTitles.myPalsLocal,
-            data: [...installed, ...purchased],
+            data: installed,
           });
         }
         if (library.length > 0) {
@@ -322,19 +304,6 @@ export const PalsScreen: React.FC = observer(() => {
       </Text>
     </View>
   );
-
-  const restoreRow =
-    purchaseStore.availability === 'ready' ? (
-      <Button
-        testID="restore-purchases-row"
-        mode="text"
-        onPress={() => purchaseStore.restore()}
-        loading={purchaseStore.isRestoring}
-        disabled={purchaseStore.isRestoring}
-        style={styles.restoreRow}>
-        {l10n.palsScreen.purchase.restorePurchases}
-      </Button>
-    ) : undefined;
 
   const {columns, cardWidth} = computePalGridLayout(windowWidth);
   const filteredData = getFilteredData();
@@ -391,10 +360,8 @@ export const PalsScreen: React.FC = observer(() => {
                   columns={columns}
                   cardWidth={cardWidth}
                   onPalPress={handlePalPress}
-                  onUpdatePress={handleUpdatePress}
                 />
               ))}
-          {restoreRow}
         </ScrollView>
       ) : (
         <FlatList
@@ -405,12 +372,10 @@ export const PalsScreen: React.FC = observer(() => {
               row={item}
               cardWidth={cardWidth}
               onPalPress={handlePalPress}
-              onUpdatePress={handleUpdatePress}
             />
           )}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={renderEmptyState}
-          ListFooterComponent={restoreRow}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -444,15 +409,7 @@ export const PalsScreen: React.FC = observer(() => {
 
       {/* Auth Sheet */}
       {showAuth && (
-        <AuthSheet
-          isVisible={showAuth}
-          onClose={() => {
-            setShowAuth(false);
-            if (!authService.isAuthenticated) {
-              purchaseStore.cancelLinkRequest();
-            }
-          }}
-        />
+        <AuthSheet isVisible={showAuth} onClose={() => setShowAuth(false)} />
       )}
 
       {/* Palhub's Pal Detail Sheet */}
@@ -460,7 +417,6 @@ export const PalsScreen: React.FC = observer(() => {
         <PalDetailSheet
           isVisible={showPalDetail}
           pal={selectedPal}
-          onSignInPress={() => setShowAuth(true)}
           onClose={() => {
             setShowPalDetail(false);
             setSelectedPal(null);

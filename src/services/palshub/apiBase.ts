@@ -12,7 +12,7 @@ export const setApiBaseOverride = (base: string | undefined): void => {
   }
 };
 
+// PocketPalOmni does not announce in-app purchase support (no X-IAP-Capable)
 export const clientHeaders = (): Record<string, string> => ({
-  'X-IAP-Capable': '1',
   'X-Client-Platform': Platform.OS,
 });

@@ -4,8 +4,7 @@ import {makeAutoObservable} from 'mobx';
 import {makePersistable} from 'mobx-persist-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {isPlusUnlocked, openPlus} from '../services/plus/gate';
-import {VoiceEntitlement, voiceModeDeviceSupported} from '../services/voice';
+import {voiceModeDeviceSupported} from '../services/voice';
 
 import {modelStore} from './ModelStore';
 
@@ -31,8 +30,6 @@ export class VoiceModeStore {
   micMuted = false;
   presentation: VoicePresentation = 'full';
   lastError: VoiceError | null = null;
-  /** E2E builds only: forces the default entitlement either way. */
-  unlockOverride: boolean | null = null;
   /** The Settings switch; null follows the device gate. */
   userVoiceModeOverride: boolean | null = null;
 
@@ -40,9 +37,7 @@ export class VoiceModeStore {
     makeAutoObservable(this, {}, {autoBind: true});
     makePersistable(this, {
       name: 'VoiceModeStore',
-      properties: __E2E__
-        ? ['userVoiceModeOverride', 'unlockOverride']
-        : ['userVoiceModeOverride'],
+      properties: ['userVoiceModeOverride'],
       storage: AsyncStorage,
     });
   }
@@ -65,10 +60,6 @@ export class VoiceModeStore {
   /** The full voice view covers the chat. */
   get isFullViewOpen(): boolean {
     return this.phase !== 'closed' && this.presentation === 'full';
-  }
-
-  get isUnlocked(): boolean {
-    return voiceEntitlement.source.isUnlocked();
   }
 
   /** `useVoiceMode` only. */
@@ -100,16 +91,6 @@ export class VoiceModeStore {
   setUserVoiceModeOverride(enabled: boolean): void {
     this.userVoiceModeOverride = enabled;
   }
-
-  /** E2E drivers only. */
-  setUnlockOverride(unlocked: boolean | null): void {
-    this.unlockOverride = unlocked;
-  }
 }
 
 export const voiceModeStore = new VoiceModeStore();
-
-export const voiceEntitlement = new VoiceEntitlement({
-  isUnlocked: () => voiceModeStore.unlockOverride ?? isPlusUnlocked(),
-  openPaywall: ({onUnlocked}) => openPlus({onUnlocked}),
-});

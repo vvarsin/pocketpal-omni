@@ -13,7 +13,6 @@ import {
   VoiceModeControlsContext,
   VoiceModeView,
   VoiceSetupSheet,
-  VoiceTeaser,
 } from '../../components';
 import {PalSheet} from '../../components/PalsSheets';
 
@@ -290,8 +289,7 @@ export const ChatScreen: React.FC = observer(() => {
     return <VideoPalScreen activePal={activePal} />;
   }
 
-  const teaserOpen = voiceMode.sheet?.kind === 'teaser';
-  const chatCovered = voiceModeStore.isFullViewOpen || teaserOpen;
+  const chatCovered = voiceModeStore.isFullViewOpen;
 
   // Otherwise, show the regular chat view
   return (
@@ -335,13 +333,6 @@ export const ChatScreen: React.FC = observer(() => {
         />
       </View>
       {voiceModeStore.isFullViewOpen && <VoiceModeView />}
-      {teaserOpen && (
-        <VoiceTeaser
-          onGetPlus={voiceMode.getPlus}
-          onKeepTyping={voiceMode.keepTyping}
-          onClose={voiceMode.dismissSheet}
-        />
-      )}
       <VoiceSetupSheet
         isVisible={voiceMode.sheet?.kind === 'setup'}
         onClose={voiceMode.dismissSheet}

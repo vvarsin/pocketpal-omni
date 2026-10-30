@@ -44,7 +44,6 @@ import {
   modelStore,
   ttsStore,
   uiStore,
-  voiceEntitlement,
   voiceModeStore,
 } from '../store';
 import type {VoiceError, VoicePhase} from '../store';
@@ -53,7 +52,6 @@ import {ModelOrigin} from '../utils/types';
 import {startVoiceTrace, vtrace} from '../utils/voiceTrace';
 
 export type VoiceModeSheet =
-  | {kind: 'teaser'}
   | {kind: 'setup'}
   | {kind: 'memory'; fit: VoiceMemoryFit}
   | null;
@@ -203,10 +201,6 @@ class VoiceModeController {
   }
 
   private entryBlocked(): boolean {
-    if (!voiceModeStore.isUnlocked) {
-      this.showSheet({kind: 'teaser'});
-      return true;
-    }
     if (!modelStore.activeModelId) {
       this.actions.openModelPicker();
       return true;
@@ -220,20 +214,6 @@ class VoiceModeController {
    */
   get isCreatingChat(): boolean {
     return this.sendingToNewChat;
-  }
-
-  getPlus(): void {
-    this.showSheet(null);
-    const actions = this.actions;
-    voiceEntitlement.source.openPaywall({
-      onUnlocked: () => this.requestEntry(actions),
-    });
-  }
-
-  keepTyping(): void {
-    this.showSheet(null);
-    const {focusInput} = this.actions;
-    requestAnimationFrame(() => focusInput());
   }
 
   chooseSmallerModel(): void {
@@ -645,7 +625,6 @@ export function useVoiceMode({
   useFocusEffect(
     useCallback(
       () => () => {
-        setSheet(current => (current?.kind === 'teaser' ? null : current));
         controller.exit('blur');
       },
       [controller],
@@ -663,8 +642,6 @@ export function useVoiceMode({
       (actions: VoiceEntryActions) => controller.requestEntry(actions),
       [controller],
     ),
-    getPlus: useCallback(() => controller.getPlus(), [controller]),
-    keepTyping: useCallback(() => controller.keepTyping(), [controller]),
     sheet,
     setupDone: useCallback(() => {
       setSheet(null);

@@ -1090,7 +1090,6 @@ describe('voice mode button', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (voiceModeStore as any).reset();
-    voiceModeStore.setUnlockOverride(true);
     runInAction(() => {
       modelStore.activeModelId = 'test-model-id';
       modelStore.deviceTier = 'high';
@@ -1125,12 +1124,6 @@ describe('voice mode button', () => {
     focus.mockClear();
     onVoicePress.mock.calls[0][0]();
     expect(focus).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows the lock badge when voice mode is locked', () => {
-    voiceModeStore.setUnlockOverride(false);
-    const {getByTestId} = renderInput();
-    expect(getByTestId('voice-mode-lock')).toBeTruthy();
   });
 
   it.each([

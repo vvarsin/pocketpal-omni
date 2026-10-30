@@ -51,7 +51,6 @@ jest.mock('../../services', () => ({
     getMyPals: jest.fn(),
     getCategories: jest.fn(),
     getTags: jest.fn(),
-    checkPalOwnership: jest.fn(),
   },
 }));
 
@@ -668,19 +667,6 @@ describe('PalStore', () => {
         expect(result).toEqual(mockPalsHubPalResponse);
         expect(palsHubService.getPal).toHaveBeenCalledWith('1');
       });
-
-      it('should check pal ownership', async () => {
-        const mockOwnership = {owned: true, purchase_date: '2023-01-01'};
-
-        (palsHubService.checkPalOwnership as jest.Mock).mockResolvedValue(
-          mockOwnership,
-        );
-
-        const result = await palStore.checkPalOwnership('pal-id');
-
-        expect(result).toEqual(mockOwnership);
-        expect(palsHubService.checkPalOwnership).toHaveBeenCalledWith('pal-id');
-      });
     });
 
     describe('downloadPalsHubPal', () => {
@@ -744,53 +730,6 @@ describe('PalStore', () => {
 
         expect(result).toEqual(expectedLocalPal);
         expect(palStore.pals).toContainEqual(expectedLocalPal);
-      });
-
-      it('should handle premium pal ownership check before downloading', async () => {
-        const premiumPal: PalsHubPal = {
-          ...mockPalsHubPal,
-          id: 'premium-pal-id',
-          price_cents: 500, // Premium pal
-        };
-
-        // Mock ownership check to return owned
-        (palsHubService.checkPalOwnership as jest.Mock).mockResolvedValue({
-          owned: true,
-        });
-        (palRepository.createPal as jest.Mock).mockResolvedValue({
-          ...premiumPal,
-          type: 'local',
-          id: 'local-id',
-        });
-
-        await palStore.downloadPalsHubPal(premiumPal);
-
-        // Verify ownership was checked
-        expect(palsHubService.checkPalOwnership).toHaveBeenCalledWith(
-          'premium-pal-id',
-        );
-      });
-
-      it('should reject download for unowned premium pal', async () => {
-        const premiumPal: PalsHubPal = {
-          ...mockPalsHubPal,
-          id: 'premium-pal-id',
-          price_cents: 500, // Premium pal
-        };
-
-        // Mock ownership check to return not owned
-        (palsHubService.checkPalOwnership as jest.Mock).mockResolvedValue({
-          owned: false,
-        });
-
-        await expect(palStore.downloadPalsHubPal(premiumPal)).rejects.toThrow(
-          'You must own this Pal to download it',
-        );
-
-        // Verify ownership was checked
-        expect(palsHubService.checkPalOwnership).toHaveBeenCalledWith(
-          'premium-pal-id',
-        );
       });
     });
 

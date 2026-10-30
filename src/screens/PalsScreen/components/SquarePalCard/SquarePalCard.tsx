@@ -3,13 +3,7 @@ import {View, TouchableOpacity, Image, Alert} from 'react-native';
 
 import {observer} from 'mobx-react-lite';
 import {useNavigation} from '@react-navigation/native';
-import {
-  ActivityIndicator,
-  Text,
-  Card,
-  Chip,
-  IconButton,
-} from 'react-native-paper';
+import {Text, Card, Chip, IconButton} from 'react-native-paper';
 
 import {
   StarIcon,
@@ -26,7 +20,7 @@ import {createStyles} from './styles';
 
 import type {Pal} from '../../../../store/PalStore';
 import {palStore} from '../../../../store/PalStore';
-import {modelStore, purchaseStore} from '../../../../store';
+import {modelStore} from '../../../../store';
 
 import type {PalsHubPal} from '../../../../types/palshub';
 
@@ -36,7 +30,6 @@ import {exportPal} from '../../../../utils/exportUtils';
 import {activatePalWithModel} from '../../../../utils/activatePal';
 import {getContrastColor} from '../../../../utils/colorUtils';
 import {getFullThumbnailUri} from '../../../../utils/imageUtils';
-import {getPalDisplayLabel} from '../../../../utils/palshub-display';
 import {hasVideoCapability} from '../../../../utils/pal-capabilities';
 import {isLocalPal, isPalsHubPal} from '../../../../utils/pal-type-guards';
 
@@ -44,10 +37,7 @@ interface SquarePalCardProps {
   pal: PalsHubPal | Pal;
   onPress: () => void;
   isLocal?: boolean;
-  onUpdatePress?: (palshubId: string) => void;
 }
-
-const UPDATE_BADGE_HIT_SLOP = {top: 13, bottom: 13, left: 4, right: 4};
 
 const generateParameterSummary = (pal: Pal): string => {
   // Safety check for parameters
@@ -214,7 +204,7 @@ const PalThumbnail: React.FC<{
 };
 
 export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
-  ({pal, onPress, isLocal = false, onUpdatePress}) => {
+  ({pal, onPress, isLocal = false}) => {
     const theme = useTheme();
     const styles = createStyles(theme);
     const l10n = useContext(L10nContext);
@@ -307,14 +297,8 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
       }
     };
 
-    // Get display label for pal
-    const getDisplayLabel = (pal_: PalsHubPal) => {
-      return getPalDisplayLabel(pal_);
-    };
-
     const palColors = isLocalPal(pal) ? pal.color : null;
     const palName = isPalsHubPal(pal) ? pal.title : pal.name;
-    const palLabel = isPalsHubPal(pal) ? getDisplayLabel(pal) : null;
     const palRating = isPalsHubPal(pal) ? pal.average_rating : pal.rating;
     const palReviewCount = isPalsHubPal(pal)
       ? pal.review_count
@@ -323,18 +307,6 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
     const palCreator = isPalsHubPal(pal) ? pal.creator : undefined;
     const isProtected =
       isPalsHubPal(pal) && pal.protection_level === 'reveal_on_purchase';
-    const palshubId = isPalsHubPal(pal) ? pal.id : pal.palshub_id;
-    const purchaseStatus = palshubId
-      ? purchaseStore.recordFor(palshubId)?.status
-      : undefined;
-    const isPending = purchaseStatus === 'pending_payment';
-    const isUnlocking =
-      purchaseStatus === 'unlocking' || purchaseStatus === 'granted';
-    const updatePalId =
-      palshubId && purchaseStore.updateAvailable(palshubId)
-        ? palshubId
-        : undefined;
-
     // Create card style with optional color theming
     const cardStyle = [
       styles.card,
@@ -350,17 +322,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
           testID={`${isPalsHubPal(pal) ? 'palshub' : 'local'}-pal-card-${pal.id}`}
           style={styles.container}
           onPress={onPress}
-          activeOpacity={0.7}
-          {...(updatePalId && {
-            accessibilityActions: [
-              {name: 'update', label: l10n.palsScreen.purchase.badgeUpdate},
-            ],
-            onAccessibilityAction: event => {
-              if (event.nativeEvent.actionName === 'update') {
-                onUpdatePress?.(updatePalId);
-              }
-            },
-          })}>
+          activeOpacity={0.7}>
           <Card elevation={0} style={cardStyle} contentStyle={styles.cardInner}>
             <View style={styles.cardContent}>
               {/* Thumbnail */}
@@ -502,52 +464,9 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
                       </View>
                     )}
                   </View>
-                  {isPending && (
-                    <View
-                      testID="pal-badge-pending"
-                      style={styles.purchaseBadge}>
-                      <Text style={styles.purchaseBadgeText} numberOfLines={1}>
-                        {l10n.palsScreen.purchase.badgePending}
-                      </Text>
-                    </View>
-                  )}
-                  {isUnlocking && (
-                    <ActivityIndicator
-                      testID="pal-badge-unlocking"
-                      size={12}
-                      accessibilityLabel={
-                        l10n.palsScreen.purchase.badgeUnlocking
-                      }
-                    />
-                  )}
-                  {updatePalId && (
-                    <TouchableOpacity
-                      testID="pal-badge-update"
-                      style={styles.purchaseBadge}
-                      accessibilityRole="button"
-                      accessibilityLabel={l10n.palsScreen.purchase.badgeUpdate}
-                      hitSlop={UPDATE_BADGE_HIT_SLOP}
-                      onPress={() => onUpdatePress?.(updatePalId)}>
-                      <Text style={styles.purchaseBadgeText} numberOfLines={1}>
-                        {l10n.palsScreen.purchase.badgeUpdate}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
                 </View>
               </View>
             </View>
-
-            {/* Premium Badge - Top right corner of entire card */}
-            {isPalsHubPal(pal) &&
-              palLabel &&
-              palLabel.showLabel &&
-              palLabel.type === 'premium' && (
-                <View style={styles.premiumBadge}>
-                  <Text style={styles.premiumBadgeText} numberOfLines={1}>
-                    {palLabel.label}
-                  </Text>
-                </View>
-              )}
           </Card>
         </TouchableOpacity>
       </View>

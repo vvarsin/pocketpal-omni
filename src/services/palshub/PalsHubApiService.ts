@@ -314,12 +314,8 @@ class PalsHubApiService {
       if (query.tag_names?.length) {
         params.set('tag', query.tag_names[0]);
       }
-      if (query.price_min !== undefined) {
-        params.set('price_min', query.price_min.toString());
-      }
-      if (query.price_max !== undefined) {
-        params.set('price_max', query.price_max.toString());
-      }
+      // PocketPalOmni has no purchases: the hub lists free pals only
+      params.set('price_max', '0');
       if (query.sort_by) {
         // Map internal sort values to API format
         const sortMap: Record<string, string> = {

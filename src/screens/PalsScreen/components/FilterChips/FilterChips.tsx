@@ -7,13 +7,7 @@ import {useTheme} from '../../../../hooks';
 import {createStyles} from './styles';
 import {PAL_FILTER_LABELS} from '../../../../utils/palshub-display';
 
-export type FilterType =
-  | 'all'
-  | 'my-pals'
-  | 'local'
-  | 'video'
-  | 'free'
-  | 'premium'; // Changed from 'paid' to 'premium'
+export type FilterType = 'all' | 'my-pals' | 'local' | 'video';
 
 interface FilterChipsProps {
   activeFilter: FilterType;
@@ -51,16 +45,6 @@ export const FilterChips: React.FC<FilterChipsProps> = observer(
       {
         key: 'video',
         label: PAL_FILTER_LABELS.video,
-        showWhenUnauthenticated: true,
-      },
-      {
-        key: 'free',
-        label: PAL_FILTER_LABELS.free,
-        showWhenUnauthenticated: true,
-      },
-      {
-        key: 'premium',
-        label: PAL_FILTER_LABELS.premium,
         showWhenUnauthenticated: true,
       },
     ];

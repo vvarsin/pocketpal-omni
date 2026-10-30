@@ -7,8 +7,6 @@ export type {
   VoiceMemoryInputs,
   VoiceMemoryRow,
 } from './memoryFit';
-export {VoiceEntitlement} from './entitlement';
-export type {VoiceEntitlementSource} from './entitlement';
 export {
   isMicGranted,
   isVoiceModeVoice,

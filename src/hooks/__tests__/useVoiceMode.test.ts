@@ -21,7 +21,6 @@ import {
   modelStore,
   ttsStore,
   uiStore,
-  voiceEntitlement,
   voiceModeStore,
 } from '../../store';
 import {acquireKeepAwake} from '../../utils/keepAwake';
@@ -177,8 +176,6 @@ describe('useVoiceMode', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (voiceModeStore as any).reset();
-    voiceEntitlement.register((voiceEntitlement as any).defaultSource);
-    voiceModeStore.setUnlockOverride(true);
     (AudioRecord.on as jest.Mock).mockReturnValue({remove: jest.fn()});
     (AudioRecord.init as jest.Mock).mockResolvedValue(undefined);
     (check as jest.Mock).mockResolvedValue('granted');
@@ -202,146 +199,6 @@ describe('useVoiceMode', () => {
   });
 
   describe('entry', () => {
-    it('shows the teaser, not the paywall, when voice mode is locked', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, engine, hook} = renderVoiceMode();
-
-      await enter();
-
-      expect(hook.result.current.sheet).toEqual({kind: 'teaser'});
-      expect(
-        (voiceEntitlement as any).defaultSource.openPaywall,
-      ).not.toHaveBeenCalled();
-      expect(engine.prepare).not.toHaveBeenCalled();
-      expect(voiceModeStore.phase).toBe('closed');
-    });
-
-    it('starts no engine, mic, speech or keep-awake while the teaser shows', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, engine} = renderVoiceMode();
-
-      await enter();
-
-      expect(engine.prepare).not.toHaveBeenCalled();
-      expect(AudioRecord.init).not.toHaveBeenCalled();
-      expect(AudioRecord.start).not.toHaveBeenCalled();
-      expect(check).not.toHaveBeenCalled();
-      expect(acquireKeepAwake).not.toHaveBeenCalled();
-      expect(ttsStore.voiceOutputActive).toBe(false);
-    });
-
-    it('Get Plus closes the teaser and opens the paywall once', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, hook} = renderVoiceMode();
-      await enter();
-
-      act(() => hook.result.current.getPlus());
-
-      expect(hook.result.current.sheet).toBeNull();
-      expect(
-        (voiceEntitlement as any).defaultSource.openPaywall,
-      ).toHaveBeenCalledTimes(1);
-    });
-
-    it('Keep typing closes the teaser, then focuses the composer', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, hook} = renderVoiceMode();
-      await enter();
-      jest.useFakeTimers();
-
-      act(() => hook.result.current.keepTyping());
-
-      expect(hook.result.current.sheet).toBeNull();
-      expect(focusInput).not.toHaveBeenCalled();
-      act(() => jest.runOnlyPendingTimers());
-      jest.useRealTimers();
-      expect(focusInput).toHaveBeenCalledTimes(1);
-      expect(
-        (voiceEntitlement as any).defaultSource.openPaywall,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('leaving the screen closes the teaser', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, hook} = renderVoiceMode();
-      await enter();
-      expect(hook.result.current.sheet).toEqual({kind: 'teaser'});
-
-      act(() => mockBlur?.());
-
-      expect(hook.result.current.sheet).toBeNull();
-    });
-
-    it('closing the teaser leaves the composer alone', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, hook} = renderVoiceMode();
-      await enter();
-
-      act(() => hook.result.current.dismissSheet());
-
-      expect(hook.result.current.sheet).toBeNull();
-      expect(focusInput).not.toHaveBeenCalled();
-      expect(
-        (voiceEntitlement as any).defaultSource.openPaywall,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('an unlock that arrives after the chat screen is gone starts nothing', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, engine, hook} = renderVoiceMode();
-      await enter();
-      act(() => hook.result.current.getPlus());
-      const [{onUnlocked}] = (voiceEntitlement as any).defaultSource.openPaywall
-        .mock.calls[0];
-      hook.unmount();
-
-      voiceModeStore.setUnlockOverride(true);
-      await act(async () => {
-        await onUnlocked();
-      });
-
-      expect(engine.prepare).not.toHaveBeenCalled();
-      expect(AudioRecord.init).not.toHaveBeenCalled();
-      expect(voiceModeStore.phase).toBe('closed');
-    });
-
-    it('resumes entry when the paywall reports an unlock', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      const {enter, engine, hook} = renderVoiceMode();
-      await enter();
-      act(() => hook.result.current.getPlus());
-      const [{onUnlocked}] = (voiceEntitlement as any).defaultSource.openPaywall
-        .mock.calls[0];
-
-      voiceModeStore.setUnlockOverride(true);
-      await act(async () => {
-        await onUnlocked();
-      });
-
-      expect(engine.prepare).toHaveBeenCalledTimes(1);
-      expect(voiceModeStore.phase).toBe('listening');
-    });
-
-    it('after an unlock with no model loaded, opens the model picker', async () => {
-      voiceModeStore.setUnlockOverride(false);
-      runInAction(() => {
-        model.activeModelId = undefined;
-      });
-      const {enter, hook} = renderVoiceMode();
-      await enter();
-      act(() => hook.result.current.getPlus());
-      const [{onUnlocked}] = (voiceEntitlement as any).defaultSource.openPaywall
-        .mock.calls[0];
-
-      voiceModeStore.setUnlockOverride(true);
-      await act(async () => {
-        await onUnlocked();
-      });
-
-      expect(openModelPicker).toHaveBeenCalledTimes(1);
-      expect(hook.result.current.sheet).toBeNull();
-    });
-
     it('opens only the model picker when no model is loaded', async () => {
       runInAction(() => {
         model.activeModelId = undefined;
@@ -514,25 +371,6 @@ describe('useVoiceMode', () => {
         expect(voiceModeStore.phase).toBe('closed');
       },
     );
-
-    it('shows the teaser instead of entering after setup when voice mode locked meanwhile', async () => {
-      runInAction(() => {
-        asrStore.downloadStates.base = 'not_installed';
-      });
-      const {enter, hook, engine} = renderVoiceMode();
-      await enter();
-
-      runInAction(() => {
-        asrStore.downloadStates.base = 'ready';
-      });
-      voiceModeStore.setUnlockOverride(false);
-      await act(async () => {
-        await hook.result.current.setupDone();
-      });
-
-      expect(hook.result.current.sheet).toEqual({kind: 'teaser'});
-      expect(engine.prepare).not.toHaveBeenCalled();
-    });
 
     it('enters a local model with a held first chunk, a keep-awake hold and an open mic', async () => {
       const {enter, engine} = renderVoiceMode();

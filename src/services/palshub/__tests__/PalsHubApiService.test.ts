@@ -52,7 +52,8 @@ describe('PalsHubApiService', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://api.test/api/mobile/pals?q=foo&category=cat1&tag=tag1&price_min=1&price_max=100&sort=popular&page=2&limit=5',
+      // Free pals only, whatever price range the caller asks for
+      'https://api.test/api/mobile/pals?q=foo&category=cat1&tag=tag1&price_max=0&sort=popular&page=2&limit=5',
       expect.any(Object),
     );
     expect(result).toEqual({
@@ -478,7 +479,7 @@ describe('PalsHubApiService', () => {
     });
   });
 
-  it('sends the in-app purchase client headers on every request', async () => {
+  it('sends the client platform and no in-app purchase header', async () => {
     jest.resetModules();
     jest.doMock('@env', () => ({PALSHUB_API_BASE_URL: 'https://api.test'}));
     jest.doMock('../supabase', () => ({
@@ -499,7 +500,7 @@ describe('PalsHubApiService', () => {
     await palsHubApiService.getPals();
 
     const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers;
-    expect(headers['X-IAP-Capable']).toBe('1');
+    expect(headers['X-IAP-Capable']).toBeUndefined();
     expect(headers['X-Client-Platform']).toBe(Platform.OS);
     expect(headers.Authorization).toBe('Bearer t');
   });

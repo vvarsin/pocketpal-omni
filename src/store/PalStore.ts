@@ -35,7 +35,6 @@ import {parsePalsHubTemplate} from '../utils/palshub-template-parser';
 import {getDisplayNameFromFilename} from '../utils/formatters';
 
 import type {Pal, PalUpdate, ParameterDefinition} from '../types/pal';
-import type {CreatorField} from '../services/iap/creatorContent';
 import type {
   ModelReference,
   PalsHubPal,
@@ -52,67 +51,6 @@ import {downloadPalThumbnail, deletePalThumbnail} from '../utils/imageUtils';
 // (check key, find existing, create, set key) instead of a third copy.
 const LOOKIE_SEEDED_KEY = 'PalStore.builtin.Lookie.seeded';
 const PIP_SEEDED_KEY = 'PalStore.builtin.Pip.seeded';
-
-interface CreatorUpdateContext {
-  fresh: Pal;
-  current: Pal;
-  palsHubPal: PalsHubPal;
-  localPalId: string;
-}
-
-const CREATOR_UPDATES: Record<
-  CreatorField,
-  (context: CreatorUpdateContext) => PalUpdate | Promise<PalUpdate>
-> = {
-  title: ({fresh}) => ({name: fresh.name}),
-  description: ({fresh}) => ({description: fresh.description ?? ''}),
-  system_prompt: ({fresh, current}) => {
-    if (!fresh.systemPrompt) {
-      return {};
-    }
-    const keptParameters = Object.fromEntries(
-      fresh.parameterSchema
-        .filter(def => current.parameters?.[def.key] !== undefined)
-        .map(def => [def.key, current.parameters[def.key]]),
-    );
-    return {
-      systemPrompt: fresh.systemPrompt,
-      originalSystemPrompt: fresh.originalSystemPrompt ?? '',
-      parameterSchema: fresh.parameterSchema,
-      parameters: {...fresh.parameters, ...keptParameters},
-    };
-  },
-  model_reference: ({fresh}) => ({defaultModel: fresh.defaultModel ?? null}),
-  model_settings: ({fresh}) => ({
-    rawPalshubGenerationSettings: fresh.rawPalshubGenerationSettings ?? null,
-  }),
-  pact: ({fresh}) => ({pact: fresh.pact ?? {talents: []}}),
-  greeting: ({fresh}) => ({greeting: fresh.greeting ?? null}),
-  categories: ({fresh}) => ({categories: fresh.categories}),
-  tags: ({fresh}) => ({tags: fresh.tags}),
-  creator: ({fresh}) => ({creator_info: fresh.creator_info}),
-  protection_level: ({fresh}) => ({protection_level: fresh.protection_level}),
-  thumbnail_url: async ({palsHubPal, localPalId}) => {
-    if (!palsHubPal.thumbnail_url) {
-      return {};
-    }
-    return {
-      thumbnail_url: await downloadPalThumbnail(
-        localPalId,
-        palsHubPal.thumbnail_url,
-      ),
-    };
-  },
-};
-
-export interface CreatorUpdateResult {
-  thumbnailFailed: boolean;
-}
-
-export interface OwnedPalInstall {
-  localPal: Pal;
-  created: boolean;
-}
 
 class PalStore {
   // Core pals storage
@@ -295,28 +233,10 @@ class PalStore {
    * Downloads a PalsHub pal and converts it to unified format
    */
   downloadPalsHubPal = async (palsHubPal: PalsHubPal): Promise<Pal> => {
-    if (palsHubPal.price_cents > 0) {
-      const ownership = await palsHubService.checkPalOwnership(palsHubPal.id);
-      if (!ownership.owned) {
-        throw new Error('You must own this Pal to download it');
-      }
-    }
     const {pal} = await this.insertPalsHubPalOnce(palsHubPal.id, () =>
       this.createPalFromPalsHub(palsHubPal),
     );
     return pal;
-  };
-
-  installOwnedPal = async (
-    palsHubPal: PalsHubPal,
-  ): Promise<OwnedPalInstall> => {
-    if (!palsHubPal.system_prompt) {
-      throw new Error('An owned Pal cannot be installed without its prompt');
-    }
-    const {pal, created} = await this.insertPalsHubPalOnce(palsHubPal.id, () =>
-      this.createPalFromPalsHub(palsHubPal),
-    );
-    return {localPal: pal, created};
   };
 
   insertPalsHubPalOnce = (
@@ -348,38 +268,6 @@ class PalStore {
       })
       .catch(() => undefined);
     return run;
-  };
-
-  applyCreatorUpdate = async (
-    localPalId: string,
-    palsHubPal: PalsHubPal,
-    fields: ReadonlySet<CreatorField>,
-  ): Promise<CreatorUpdateResult> => {
-    const current = this.getPalById(localPalId);
-    if (!current || fields.size === 0) {
-      return {thumbnailFailed: false};
-    }
-    const fresh = await this.createLocalPalFromPalsHub(
-      fields.has('model_reference')
-        ? palsHubPal
-        : {...palsHubPal, model_reference: undefined},
-    );
-    const context = {fresh, current, palsHubPal, localPalId};
-    const updates: PalUpdate = {};
-    let thumbnailFailed = false;
-    for (const field of fields) {
-      try {
-        Object.assign(updates, await CREATOR_UPDATES[field](context));
-      } catch (error) {
-        if (field !== 'thumbnail_url') {
-          throw error;
-        }
-        console.warn('Failed to refresh thumbnail:', error);
-        thumbnailFailed = true;
-      }
-    }
-    await this.updatePal(localPalId, updates);
-    return {thumbnailFailed};
   };
 
   private createPalFromPalsHub = async (
@@ -785,18 +673,6 @@ class PalStore {
       return await palsHubService.getPal(id);
     } catch (error) {
       console.error('Failed to fetch pal:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Check if user owns a specific pal
-   */
-  checkPalOwnership = async (palId: string) => {
-    try {
-      return await palsHubService.checkPalOwnership(palId);
-    } catch (error) {
-      console.error('Failed to check pal ownership:', error);
       throw error;
     }
   };

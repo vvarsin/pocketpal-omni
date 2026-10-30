@@ -99,6 +99,5 @@ module.exports = {
       '<rootDir>/__mocks__/external/@pocketpalai/react-native-speech-native-audio-player.ts',
     '^@pocketpalai/react-native-speech-phonon$':
       '<rootDir>/__mocks__/external/@pocketpalai/react-native-speech-phonon.ts',
-    '^react-native-iap$': '<rootDir>/__mocks__/external/react-native-iap.ts',
   },
 };

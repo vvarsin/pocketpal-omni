@@ -4,25 +4,15 @@ import {makePersistable} from 'mobx-persist-store';
 
 import {mockASRStore} from '../../../__mocks__/stores/asrStore';
 import {mockModelStore} from '../../../__mocks__/stores/modelStore';
-import {mockPurchaseStore} from '../../../__mocks__/stores/purchaseStore';
-import {plusGate} from '../../services/plus/gate';
 
 jest.mock('../ModelStore', () => ({
   modelStore: require('../../../__mocks__/stores/modelStore').mockModelStore,
 }));
 
-import {
-  VoiceModeStore,
-  voiceEntitlement,
-  voiceModeStore,
-} from '../VoiceModeStore';
+import {VoiceModeStore, voiceModeStore} from '../VoiceModeStore';
 
 describe('VoiceModeStore', () => {
-  const defaultSource = voiceEntitlement.source;
-
   afterEach(() => {
-    voiceEntitlement.register(defaultSource);
-    voiceModeStore.setUnlockOverride(null);
     runInAction(() => {
       voiceModeStore.userVoiceModeOverride = null;
     });
@@ -83,62 +73,15 @@ describe('VoiceModeStore', () => {
     Platform.OS = platform;
   });
 
-  it('is locked by default', () => {
-    expect(voiceModeStore.isUnlocked).toBe(false);
-  });
-
-  it('the dev override unlocks the default source', () => {
-    voiceModeStore.setUnlockOverride(true);
-    expect(voiceModeStore.isUnlocked).toBe(true);
-  });
-
-  it('a registered source decides, and its paywall opens', () => {
-    const source = {isUnlocked: () => true, openPaywall: jest.fn()};
-    voiceEntitlement.register(source);
-
-    expect(voiceModeStore.isUnlocked).toBe(true);
-    const onUnlocked = jest.fn();
-    voiceEntitlement.source.openPaywall({onUnlocked});
-    expect(source.openPaywall).toHaveBeenCalledWith({onUnlocked});
-  });
-
-  it('unlocks with Plus', () => {
-    runInAction(() => {
-      mockPurchaseStore.plusUnlocked = true;
-    });
-    expect(voiceModeStore.isUnlocked).toBe(true);
-    runInAction(() => {
-      mockPurchaseStore.plusUnlocked = false;
-    });
-    expect(voiceModeStore.isUnlocked).toBe(false);
-  });
-
-  it('opens the Plus screen as its paywall', () => {
-    const onUnlocked = jest.fn();
-    voiceEntitlement.source.openPaywall({onUnlocked});
-    expect(plusGate.request).toEqual({onUnlocked});
-    runInAction(() => {
-      plusGate.request = null;
-    });
-  });
-
-  it('persists the Settings override, and the unlock override only in E2E builds', () => {
-    (global as any).__DEV__ = true;
-    (global as any).__E2E__ = false;
-    const dev = new VoiceModeStore();
-    expect(makePersistable).toHaveBeenCalledWith(
-      dev,
-      expect.objectContaining({properties: ['userVoiceModeOverride']}),
-    );
-
-    (global as any).__E2E__ = true;
-    const e2e = new VoiceModeStore();
-    expect(makePersistable).toHaveBeenCalledWith(
-      e2e,
-      expect.objectContaining({
-        properties: ['userVoiceModeOverride', 'unlockOverride'],
-      }),
-    );
+  it('persists only the Settings override', () => {
+    for (const e2e of [false, true]) {
+      (global as any).__E2E__ = e2e;
+      const store = new VoiceModeStore();
+      expect(makePersistable).toHaveBeenCalledWith(
+        store,
+        expect.objectContaining({properties: ['userVoiceModeOverride']}),
+      );
+    }
   });
 
   it('reports open and full-view states that change only when a session opens, closes or collapses', () => {

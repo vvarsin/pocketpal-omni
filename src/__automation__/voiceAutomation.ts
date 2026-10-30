@@ -65,9 +65,7 @@ const STATES: Record<
 export async function runVoiceCommand(cmd: string): Promise<void> {
   console.log(`[${VOICE_AUTOMATION_STATE}] ${cmd}`);
   const [verb, arg] = cmd.split('::');
-  if (verb === 'unlock') {
-    voiceModeStore.setUnlockOverride(arg === 'plus' ? null : arg === 'on');
-  } else if (verb === 'gate') {
+  if (verb === 'gate') {
     runInAction(() => {
       modelStore.deviceTier = arg === 'on' ? 'high' : 'low';
     });

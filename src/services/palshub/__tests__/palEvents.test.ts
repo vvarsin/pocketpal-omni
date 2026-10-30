@@ -21,7 +21,6 @@ describe('palEvents.send', () => {
     expect(JSON.parse(init.body)).toEqual({type: 'buy_tap'});
     expect(init.headers).toEqual({
       'Content-Type': 'application/json',
-      'X-IAP-Capable': '1',
       'X-Client-Platform': Platform.OS,
     });
   });

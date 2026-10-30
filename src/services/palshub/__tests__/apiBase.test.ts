@@ -25,9 +25,8 @@ describe('apiBase', () => {
     expect(getApiBase()).toBe('https://palshub.ai');
   });
 
-  it('always sends both client headers together', () => {
+  it('sends the client platform and no in-app purchase header', () => {
     expect(clientHeaders()).toEqual({
-      'X-IAP-Capable': '1',
       'X-Client-Platform': Platform.OS,
     });
   });
