@@ -20,9 +20,25 @@ export interface ThinkingDetectionResult {
  * @param ctx The LlamaContext for the loaded model
  * @returns ThinkingDetectionResult with supported flag and optional thinking tags
  */
+/**
+ * Families whose chat template keeps the shared family thinking switch but
+ * whose authors ship them as non-reasoning models. LFM3-Omni: "a non-reasoning
+ * model", run with `--reasoning off` (LiquidAI/LFM3-Omni-2B-GGUF model card).
+ */
+const NON_REASONING_BASENAMES = [/^LFM3-Omni\b/i, /^LFM3-Audio\b/i];
+
 export async function detectThinkingCapability(
   ctx: LlamaContext,
 ): Promise<ThinkingDetectionResult> {
+  const basename = (ctx.model?.metadata as Record<string, unknown> | undefined)?.[
+    'general.basename'
+  ];
+  if (
+    typeof basename === 'string' &&
+    NON_REASONING_BASENAMES.some(re => re.test(basename))
+  ) {
+    return {supported: false};
+  }
   try {
     const result = await ctx.getFormattedChat(
       [{role: 'user', content: 'test'}],

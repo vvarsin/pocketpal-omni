@@ -22,6 +22,24 @@ describe('detectThinkingCapability', () => {
     warnSpy.mockRestore();
   });
 
+  it('treats LFM3-Omni as non-reasoning even though its template has <think>', async () => {
+    const ctx = {
+      ...createMockContext({
+        type: 'jinja',
+        prompt: '<|im_start|>assistant\n<think>',
+        has_media: false,
+        thinking_start_tag: '<think>',
+        thinking_end_tag: '</think>',
+      }),
+      model: {metadata: {'general.basename': 'LFM3-Omni'}},
+    } as unknown as LlamaContext;
+
+    const result = await detectThinkingCapability(ctx);
+
+    expect(result).toEqual({supported: false});
+    expect(ctx.getFormattedChat).not.toHaveBeenCalled();
+  });
+
   it('should detect thinking support when thinking_start_tag is present', async () => {
     const ctx = createMockContext({
       type: 'jinja',

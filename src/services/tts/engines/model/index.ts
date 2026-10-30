@@ -106,11 +106,10 @@ export class ModelVoiceEngine implements Engine {
 
   async stop(): Promise<void> {
     this.generation++;
-    const source = getSpeechSource();
-    if (source) {
-      // Interrupts a speech generation in flight between two audio frames
-      await source.context.stopCompletion().catch(() => undefined);
-    }
+    // Interrupts a speech generation in flight between two audio frames.
+    // Never stopCompletion(): the app stops TTS when a new message is sent,
+    // and that would cut the new chat reply off after its first token.
+    getSpeechSource()?.context.stopSpeech();
     await neuralAudioPlayer.stop();
   }
 
@@ -170,12 +169,21 @@ export class ModelVoiceEngine implements Engine {
       return null;
     }
     const outPath = `${speechDir}/speech-${gen}-${index}.wav`;
-    const result = await source.context.generateSpeech({
-      text,
-      out_path: outPath,
-      voice: voice.id,
-      language: 'en',
-    });
+    const params = {text, out_path: outPath, voice: voice.id, language: 'en'};
+    let result;
+    // The chat reply that just ended may still hold the model for a moment
+    for (let attempt = 0; ; attempt++) {
+      try {
+        result = await source.context.generateSpeech(params);
+        break;
+      } catch (error) {
+        const busy = String((error as Error)?.message).includes('busy');
+        if (!busy || attempt >= 20 || gen !== this.generation) {
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
     if (result.interrupted || result.samples === 0) {
       RNFS.unlink(result.path).catch(() => undefined);
       return null;
