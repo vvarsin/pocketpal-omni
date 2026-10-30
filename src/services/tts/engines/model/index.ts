@@ -168,21 +168,33 @@ export class ModelVoiceEngine implements Engine {
     if (!source || gen !== this.generation) {
       return null;
     }
-    const outPath = `${speechDir}/speech-${gen}-${index}.wav`;
-    const params = {text, out_path: outPath, voice: voice.id, language: 'en'};
-    let result;
-    // The chat reply that just ended may still hold the model for a moment
-    for (let attempt = 0; ; attempt++) {
-      try {
-        result = await source.context.generateSpeech(params);
-        break;
-      } catch (error) {
-        const busy = String((error as Error)?.message).includes('busy');
-        if (!busy || attempt >= 20 || gen !== this.generation) {
-          throw error;
-        }
-        await new Promise(resolve => setTimeout(resolve, 150));
+    // Speech runs on the chat model, so it takes the same generation lease a
+    // chat reply does: it waits for a reply to end, and yields as soon as a
+    // new message queues behind it.
+    const {modelStore} = require('../../../../store');
+    const lease = await modelStore.acquireGeneration();
+    if (!lease) {
+      return null;
+    }
+    const yieldToChat = setInterval(() => {
+      if (lease.signal.aborted || modelStore.hasGenerationWaiters()) {
+        source.context.stopSpeech();
       }
+    }, 100);
+    let result;
+    try {
+      if (gen !== this.generation) {
+        return null;
+      }
+      result = await source.context.generateSpeech({
+        text,
+        out_path: `${speechDir}/speech-${gen}-${index}.wav`,
+        voice: voice.id,
+        language: 'en',
+      });
+    } finally {
+      clearInterval(yieldToChat);
+      lease.end();
     }
     if (result.interrupted || result.samples === 0) {
       RNFS.unlink(result.path).catch(() => undefined);

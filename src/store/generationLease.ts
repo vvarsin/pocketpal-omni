@@ -52,6 +52,11 @@ export class GenerationSlot {
     return this.active !== null || this.queuedAcquirers > 0;
   }
 
+  /** Someone is waiting for the held lease, e.g. a chat send behind speech. */
+  get hasWaiters(): boolean {
+    return this.queuedAcquirers > 0;
+  }
+
   /**
    * Resolves once every earlier acquirer has had its turn and `beforeGrant`
    * has settled; then grants a lease on `grantEngine()`, or resolves null

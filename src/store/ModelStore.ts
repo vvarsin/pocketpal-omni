@@ -3484,6 +3484,9 @@ class ModelStore {
     return this.generationSlot.isBusy;
   }
 
+  /** A generation is queued behind the held one (not observable; poll it). */
+  hasGenerationWaiters = (): boolean => this.generationSlot.hasWaiters;
+
   private grantableEngine = (): CompletionEngine | null =>
     this.isReleasingContext ? null : (this.engine ?? null);
 
