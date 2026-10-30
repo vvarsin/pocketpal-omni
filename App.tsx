@@ -87,6 +87,18 @@ const SwitchPoint: React.FC<SwitchPointProps> = observer(({drawer}) => {
   return <>{drawer}</>;
 });
 
+// Wrapped once, outside render: a wrapper made inside App's render is a new
+// component type on every render, so any App re-render (e.g. a theme change)
+// would remount every screen and drop its state, such as a photo just picked.
+const ChatScreenRoot = gestureHandlerRootHOC(ChatScreen);
+const PalsScreenRoot = gestureHandlerRootHOC(PalsScreen);
+const ModelsScreenRoot = gestureHandlerRootHOC(ModelsScreen);
+const BenchmarkScreenRoot = gestureHandlerRootHOC(BenchmarkScreen);
+const SettingsScreenRoot = gestureHandlerRootHOC(SettingsScreen);
+const AboutScreenRoot = gestureHandlerRootHOC(AboutScreen);
+const DevToolsScreenRoot = gestureHandlerRootHOC(DevToolsScreen);
+const BenchmarkRunnerScreenRoot = gestureHandlerRootHOC(BenchmarkRunnerScreen);
+
 const App = observer(() => {
   const theme = useTheme();
   useNavigationBarAppearance();
@@ -141,14 +153,14 @@ const App = observer(() => {
                           )}>
                           <Drawer.Screen
                             name={ROUTES.CHAT}
-                            component={gestureHandlerRootHOC(ChatScreen)}
+                            component={ChatScreenRoot}
                             options={{
                               headerShown: false,
                             }}
                           />
                           <Drawer.Screen
                             name={ROUTES.PALS}
-                            component={gestureHandlerRootHOC(PalsScreen)}
+                            component={PalsScreenRoot}
                             options={{
                               headerRight: () => <PalHeaderRight />,
                               headerStyle: styles.headerWithoutDivider,
@@ -157,7 +169,7 @@ const App = observer(() => {
                           />
                           <Drawer.Screen
                             name={ROUTES.MODELS}
-                            component={gestureHandlerRootHOC(ModelsScreen)}
+                            component={ModelsScreenRoot}
                             options={{
                               headerRight: () => <ModelsHeaderRight />,
                               headerStyle: styles.headerWithoutDivider,
@@ -166,7 +178,7 @@ const App = observer(() => {
                           />
                           <Drawer.Screen
                             name={ROUTES.BENCHMARK}
-                            component={gestureHandlerRootHOC(BenchmarkScreen)}
+                            component={BenchmarkScreenRoot}
                             options={{
                               headerStyle: styles.headerWithoutDivider,
                               title: currentL10n.screenTitles.benchmark,
@@ -174,7 +186,7 @@ const App = observer(() => {
                           />
                           <Drawer.Screen
                             name={ROUTES.SETTINGS}
-                            component={gestureHandlerRootHOC(SettingsScreen)}
+                            component={SettingsScreenRoot}
                             options={{
                               headerStyle: styles.headerWithoutDivider,
                               title: currentL10n.screenTitles.settings,
@@ -182,7 +194,7 @@ const App = observer(() => {
                           />
                           <Drawer.Screen
                             name={ROUTES.APP_INFO}
-                            component={gestureHandlerRootHOC(AboutScreen)}
+                            component={AboutScreenRoot}
                             options={{
                               headerStyle: styles.headerWithoutDivider,
                               title: currentL10n.screenTitles.appInfo,
@@ -193,7 +205,7 @@ const App = observer(() => {
                           {isDebugMode && (
                             <Drawer.Screen
                               name={ROUTES.DEV_TOOLS}
-                              component={gestureHandlerRootHOC(DevToolsScreen)}
+                              component={DevToolsScreenRoot}
                               options={{
                                 headerStyle: styles.headerWithoutDivider,
                                 title: 'Dev Tools',
@@ -212,9 +224,7 @@ const App = observer(() => {
                           {__E2E__ && (
                             <Drawer.Screen
                               name={ROUTES.BENCHMARK_RUNNER}
-                              component={gestureHandlerRootHOC(
-                                BenchmarkRunnerScreen,
-                              )}
+                              component={BenchmarkRunnerScreenRoot}
                               options={{
                                 headerStyle: styles.headerWithoutDivider,
                                 title: 'Benchmark Runner',

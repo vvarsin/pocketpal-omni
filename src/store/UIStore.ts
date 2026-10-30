@@ -66,9 +66,20 @@ export class UIStore {
 
   /** The system palette as read by useNavigationBarAppearance; empty → none. */
   setWallpaperPalette(palette: WallpaperPalette | null) {
+    const next = palette && Object.keys(palette).length > 0 ? palette : null;
+    const current = this.wallpaperPalette;
+    const same =
+      next === current ||
+      (next !== null &&
+        current !== null &&
+        Object.keys(next).length === Object.keys(current).length &&
+        Object.entries(next).every(([key, value]) => current[key] === value));
+    if (same) {
+      // Unchanged wallpaper: no theme change, so the app does not re-render
+      return;
+    }
     runInAction(() => {
-      this.wallpaperPalette =
-        palette && Object.keys(palette).length > 0 ? palette : null;
+      this.wallpaperPalette = next;
     });
   }
 
