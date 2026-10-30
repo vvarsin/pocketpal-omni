@@ -450,9 +450,10 @@ export type ChatMessage = {
   content:
     | string
     | Array<{
-        type: 'text' | 'image_url';
+        type: 'text' | 'image_url' | 'input_audio';
         text?: string;
         image_url?: {url: string};
+        input_audio?: {format: 'wav' | 'mp3'; url: string};
       }>;
   reasoning_content?: string;
   tool_calls?: Array<import('llama.rn').ToolCall>;

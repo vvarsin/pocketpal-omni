@@ -34,6 +34,7 @@ import {
   createMultimodalWarning,
 } from '../utils/errors';
 import {routerFailureMessage} from '../utils/routerCopy';
+import {toMediaMessagePart} from '../utils/mediaAttachments';
 import {
   assembleMessages,
   resolveSystemMessages,
@@ -113,10 +114,7 @@ const prepareCompletion = async ({
         type: 'text',
         text: message.text,
       },
-      ...imageUris.map(path => ({
-        type: 'image_url',
-        image_url: {url: path},
-      })),
+      ...imageUris.map(toMediaMessagePart),
     ];
   } else {
     userMessageContent = message.text;

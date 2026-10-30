@@ -23,6 +23,7 @@ const engineChipKey = {
   supertonic: 'engineChipSupertonic',
   phonon: 'engineChipPhonon',
   system: 'engineChipSystem',
+  model: 'engineChipModel',
 } as const satisfies Record<EngineId, string>;
 
 // `showSelectedCheck=false` + per-button `minWidth:0` lets the row shrink

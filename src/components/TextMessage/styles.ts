@@ -61,6 +61,11 @@ export const styles = ({
       width: '100%',
       height: '100%',
     },
+    audioThumbnail: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primary,
+    },
     imagePreviewModal: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.9)',

@@ -110,8 +110,9 @@ class TTSRuntime {
     if (prev === null) {
       return;
     }
-    // System engine doesn't hold neural resources — nothing to release.
-    if (prev !== 'system') {
+    // System and the model's own voice hold no TTS resources — nothing to
+    // release (the model voice lives in the loaded chat model).
+    if (prev !== 'system' && prev !== 'model') {
       try {
         await Speech.release();
       } catch (err) {

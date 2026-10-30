@@ -202,6 +202,20 @@ class ModelStore {
   // Flag to track if multimodal is currently active
   isMultimodalActive: boolean = false;
   activeProjectionModelId: string | undefined = undefined;
+  // What the loaded projector adds beyond images: hearing audio and, for omni
+  // models such as LFM3-Omni, speaking with the model's own voice
+  multimodalMediaCaps: {audioInput: boolean; speechOutput: boolean} = {
+    audioInput: false,
+    speechOutput: false,
+  };
+
+  get isAudioInputActive(): boolean {
+    return this.isMultimodalActive && this.multimodalMediaCaps.audioInput;
+  }
+
+  get isSpeechOutputActive(): boolean {
+    return this.isMultimodalActive && this.multimodalMediaCaps.speechOutput;
+  }
 
   // Track initialization settings for the active context
   activeContextSettings: ContextInitParams | undefined = undefined;
@@ -1883,6 +1897,7 @@ class ModelStore {
         qwen2: 151936,
         qwen3: 151936,
         lfm2: 65536,
+        lfm3: 65536,
         phi3: 32064,
         mistral: 32000,
         deepseek2: 102400,
@@ -2389,9 +2404,25 @@ class ModelStore {
             const isEnabled = await ctx.isMultimodalEnabled();
             console.log('Multimodal enabled status:', isEnabled);
 
+            const mediaCaps = {audioInput: false, speechOutput: false};
+            if (isEnabled) {
+              try {
+                const support = await ctx.getMultimodalSupport();
+                const speech = await ctx.getSpeechOutputSupport();
+                mediaCaps.audioInput = support.audio;
+                mediaCaps.speechOutput = speech.supported;
+              } catch (capsError) {
+                console.warn(
+                  'Could not read the projector media caps:',
+                  capsError,
+                );
+              }
+            }
+
             // Update the multimodal active flag
             runInAction(() => {
               this.isMultimodalActive = isEnabled;
+              this.multimodalMediaCaps = mediaCaps;
             });
           }
         } catch (error) {

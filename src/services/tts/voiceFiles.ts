@@ -5,7 +5,7 @@ import type {Voice, VoiceFileSource} from './types';
 import {ensureVoiceFileAt} from './voiceFileDownload';
 
 const voiceFileOf = (voice: Voice): VoiceFileSource | undefined =>
-  voice.engine === 'system'
+  voice.engine === 'system' || voice.engine === 'model'
     ? undefined
     : getNeuralEngine(voice.engine).voiceFile?.(voice.id);
 

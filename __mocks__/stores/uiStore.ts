@@ -37,6 +37,24 @@ export const mockUiStore = {
   l10n: l10n.en,
   setValue: jest.fn(),
   displayMemUsage: false,
+  useWallpaperColors: true,
+  wallpaperPalette: null as Record<string, string> | null,
+  get activeWallpaperPalette() {
+    return this.useWallpaperColors ? this.wallpaperPalette : null;
+  },
+  setUseWallpaperColors: jest.fn(function (
+    this: {useWallpaperColors: boolean},
+    value: boolean,
+  ) {
+    this.useWallpaperColors = value;
+  }),
+  setWallpaperPalette: jest.fn(function (
+    this: {wallpaperPalette: Record<string, string> | null},
+    palette: Record<string, string> | null,
+  ) {
+    this.wallpaperPalette =
+      palette && Object.keys(palette).length > 0 ? palette : null;
+  }),
   setAutoNavigateToChat: jest.fn(),
   setColorScheme: jest.fn(setColorScheme),
   setDisplayMemUsage: jest.fn(),

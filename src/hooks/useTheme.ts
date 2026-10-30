@@ -4,6 +4,7 @@ import {uiStore} from '../store';
 
 import {Theme} from '../utils/types';
 import {buildTheme} from '../utils/theme';
+import {wallpaperAccentColors} from '../theme/wallpaperColors';
 
 /**
  * Consumes the active design-system Theme.
@@ -31,7 +32,10 @@ export const useTheme = (): Theme => {
   const paperTheme = usePaperTheme<MD3Theme>();
   const mode = uiStore.colorScheme;
   const language = uiStore.language;
-  const key = `${mode}:${language}`;
+  const palette = uiStore.activeWallpaperPalette;
+  const key = `${mode}:${language}:${palette?.accent1_600 ?? '-'}:${
+    palette?.accent2_600 ?? '-'
+  }:${palette?.accent3_600 ?? '-'}`;
 
   let byKey = themeCache.get(paperTheme);
   if (byKey === undefined) {
@@ -43,7 +47,11 @@ export const useTheme = (): Theme => {
   if (cached === undefined) {
     cached = {
       ...paperTheme,
-      ...buildTheme({mode, language}),
+      ...buildTheme({
+        mode,
+        language,
+        accentColors: wallpaperAccentColors(palette, mode),
+      }),
     } as Theme;
     byKey.set(key, cached);
   }

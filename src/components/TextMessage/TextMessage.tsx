@@ -28,6 +28,7 @@ import {
   UserContext,
 } from '../../utils';
 import {visibleStepContent} from '../../utils/chat';
+import {isAudioAttachment} from '../../utils/mediaAttachments';
 
 export interface TextMessageTopLevelProps {
   /** @see {@link LinkPreviewProps.onPreviewDataFetched} */
@@ -98,6 +99,7 @@ export const TextMessage = ({
     imageContainer,
     imageThumbnail,
     imageContent,
+    audioThumbnail,
     imagePreviewModal,
     imagePreviewCloseButton,
     imagePreviewContent,
@@ -187,14 +189,25 @@ export const TextMessage = ({
 
     return (
       <View style={imageContainer}>
-        {imageUris.map((uri: string, index: number) => (
-          <TouchableOpacity
-            key={index}
-            style={imageThumbnail}
-            onPress={() => setSelectedImageIndex(index)}>
-            <Image source={{uri}} style={imageContent} resizeMode="cover" />
-          </TouchableOpacity>
-        ))}
+        {imageUris.map((uri: string, index: number) =>
+          isAudioAttachment(uri) ? (
+            <View
+              key={index}
+              style={[imageThumbnail, audioThumbnail]}
+              accessibilityLabel={decodeURIComponent(
+                uri.split('/').pop() ?? '',
+              )}>
+              <IconButton icon="music-note" size={24} iconColor="white" />
+            </View>
+          ) : (
+            <TouchableOpacity
+              key={index}
+              style={imageThumbnail}
+              onPress={() => setSelectedImageIndex(index)}>
+              <Image source={{uri}} style={imageContent} resizeMode="cover" />
+            </TouchableOpacity>
+          ),
+        )}
       </View>
     );
   };

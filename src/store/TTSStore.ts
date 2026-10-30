@@ -280,6 +280,7 @@ export class TTSStore {
       if (
         this.currentVoice != null &&
         this.currentVoice.engine !== 'system' &&
+        this.currentVoice.engine !== 'model' &&
         this.getDownloadState(this.currentVoice.engine as NeuralEngineId) !==
           'ready'
       ) {
@@ -306,6 +307,7 @@ export class TTSStore {
         const voice = this.currentVoice;
         return voice &&
           voice.engine !== 'system' &&
+          voice.engine !== 'model' &&
           this.getDownloadState(voice.engine) === 'ready'
           ? `${voice.engine}:${voice.id}`
           : null;
@@ -351,6 +353,12 @@ export class TTSStore {
   }
 
   isEngineOffered(id: EngineId): boolean {
+    if (id === 'model') {
+      // Only while the loaded chat model can speak (LFM3-Omni); required
+      // lazily, the model store loads after this one
+      const {modelStore} = require('./ModelStore');
+      return modelStore.isSpeechOutputActive;
+    }
     return id !== 'phonon' || this.phononSupported;
   }
 

@@ -2,6 +2,7 @@ import {applyTemplate, Templates} from 'chat-formatter';
 import {JinjaFormattedChatResult, LlamaContext} from 'llama.rn';
 import {CompletionParams} from './completionTypes';
 import {defaultCompletionParams} from './completionSettingsVersions';
+import {MediaMessagePart, toMediaMessagePart} from './mediaAttachments';
 
 import {
   AgentStep,
@@ -230,23 +231,16 @@ export function convertToChatMessages(
         textMessage.imageUris.length > 0 &&
         isMultimodalEnabled
       ) {
-        const contentArray: Array<{
-          type: 'text' | 'image_url';
-          text?: string;
-          image_url?: {url: string};
-        }> = [
+        const contentArray: Array<
+          {type: 'text'; text: string} | MediaMessagePart
+        > = [
           {
             type: 'text',
             text: messageText,
           },
         ];
 
-        contentArray.push(
-          ...textMessage.imageUris.map(path => ({
-            type: 'image_url' as const,
-            image_url: {url: path},
-          })),
-        );
+        contentArray.push(...textMessage.imageUris.map(toMediaMessagePart));
 
         return [
           {
@@ -446,6 +440,20 @@ export function getLocalModelDefaultSettings(): {
   };
 }
 
+/**
+ * Sampling a model family's authors recommend over the app defaults.
+ * LFM3 (Omni / Audio / VL): greedy text and no reasoning, per the LiquidAI
+ * model cards; the audio sampling it needs is stored in the GGUF itself.
+ */
+export function familySamplingDefaults(
+  repoId: string,
+): Partial<CompletionParams> {
+  if (/(^|\/)LFM3[-_]/i.test(repoId)) {
+    return {temperature: 0, enable_thinking: false};
+  }
+  return {};
+}
+
 export function getHFDefaultSettings(hfModel: HuggingFaceModel): {
   chatTemplate: ChatTemplateConfig;
   completionParams: CompletionParams;
@@ -464,6 +472,7 @@ export function getHFDefaultSettings(hfModel: HuggingFaceModel): {
 
   const _defaultCompletionParams = {
     ...defaultCompletionParams,
+    ...familySamplingDefaults(hfModel.id),
     stop: _defaultChatTemplate.eosToken ? [_defaultChatTemplate.eosToken] : [],
   };
 

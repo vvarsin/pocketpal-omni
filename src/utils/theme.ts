@@ -100,9 +100,12 @@ const configuredFonts = configureFonts({
 export const buildTheme = ({
   mode,
   language,
+  accentColors,
 }: {
   mode: Mode;
   language: AvailableLanguage;
+  /** Accent roles that replace the token ones (wallpaper colors). */
+  accentColors?: Partial<Theme['colors']>;
 }): Theme => {
   const baseTheme = mode === 'dark' ? MD3DarkTheme : PaperLightTheme;
   const tokens = resolveTokens(mode);
@@ -117,6 +120,7 @@ export const buildTheme = ({
       // Token-resolved color surface — same values as today's
       // createBaseColors + createSemanticColors output.
       ...tokens.colors,
+      ...accentColors,
     },
     borders: {
       inputBorderRadius: 16,

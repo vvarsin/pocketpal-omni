@@ -70,4 +70,13 @@ export const ENGINE_META: Record<EngineId, EngineMeta> = {
     gradientFrom: 'rgba(123, 136, 150, 0.10)',
     gradientTo: 'rgba(123, 136, 150, 0.02)',
   },
+  // Lives in the loaded chat model (LFM3-Omni): nothing extra on disk or in RAM
+  model: {
+    sizeMb: 0,
+    ramMb: 0,
+    voices: 2,
+    accent: '#C2185B',
+    gradientFrom: 'rgba(194, 24, 91, 0.14)',
+    gradientTo: 'rgba(194, 24, 91, 0.02)',
+  },
 };

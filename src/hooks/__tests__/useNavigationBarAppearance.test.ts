@@ -9,6 +9,8 @@ import {useNavigationBarAppearance} from '../useNavigationBarAppearance';
 
 const setNavigationBarDark = specModule.default!
   .setNavigationBarDark as jest.Mock;
+const getWallpaperPalette = specModule.default!
+  .getWallpaperPalette as jest.Mock;
 
 describe('useNavigationBarAppearance', () => {
   beforeEach(() => {
@@ -55,6 +57,27 @@ describe('useNavigationBarAppearance', () => {
     });
   });
 
+  it('stores the wallpaper palette the system reports', async () => {
+    getWallpaperPalette.mockResolvedValueOnce({accent1_600: '#335577'});
+
+    renderHook(() => useNavigationBarAppearance());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(uiStore.wallpaperPalette).toEqual({accent1_600: '#335577'});
+  });
+
+  it('keeps no palette when the system reports none', async () => {
+    uiStore.setWallpaperPalette(null);
+
+    renderHook(() => useNavigationBarAppearance());
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(uiStore.wallpaperPalette).toBeNull();
+  });
+
+  // Last: it replaces the module for the rest of the file
   it('renders without calling native when the module is absent', () => {
     jest.replaceProperty(specModule, 'default', null);
 
@@ -120,6 +143,8 @@ describe('navigation bar appearance writer', () => {
       ),
     );
 
+    // Besides the nav-bar appearance it only reads the system palette
+    expect(kotlin).toContain('getWallpaperPalette');
     expect(kotlin.match(/\.isAppearanceLight\w+\s*=/g)).toEqual([
       '.isAppearanceLightNavigationBars =',
     ]);

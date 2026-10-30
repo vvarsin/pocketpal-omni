@@ -1091,6 +1091,41 @@ export const SettingsScreen: React.FC = observer(() => {
                 </View>
                 <Divider />
 
+                {/* Wallpaper colors (Material You, Android 12+) */}
+                {uiStore.wallpaperPalette ? (
+                  <>
+                    <View style={styles.switchContainer}>
+                      <View style={styles.textContainer}>
+                        <View style={styles.labelWithIconContainer}>
+                          <View style={styles.settingIcon}>
+                            <Icon
+                              source="palette-outline"
+                              size={20}
+                              color={theme.colors.onSurface}
+                            />
+                          </View>
+                          <Text variant="titleMedium" style={styles.textLabel}>
+                            {l10n.settings.wallpaperColors}
+                          </Text>
+                        </View>
+                        <Text
+                          variant="labelSmall"
+                          style={styles.textDescription}>
+                          {l10n.settings.wallpaperColorsDescription}
+                        </Text>
+                      </View>
+                      <Switch
+                        testID="wallpaper-colors-switch"
+                        value={uiStore.useWallpaperColors}
+                        onValueChange={value =>
+                          uiStore.setUseWallpaperColors(value)
+                        }
+                      />
+                    </View>
+                    <Divider />
+                  </>
+                ) : null}
+
                 {/* Text-to-speech availability toggle */}
                 <View style={styles.switchContainer}>
                   <View style={styles.textContainer}>

@@ -37,10 +37,11 @@ describe('engineRegistry', () => {
     expect(engine.id).toBe('phonon');
   });
 
-  it('getAllEngines returns the five engines in setup-sheet order: phonon, kitten, kokoro, supertonic, system', () => {
+  it('getAllEngines returns the six engines in setup-sheet order: model, phonon, kitten, kokoro, supertonic, system', () => {
     const all = getAllEngines();
-    expect(all).toHaveLength(5);
+    expect(all).toHaveLength(6);
     expect(all.map(e => e.id)).toEqual([
+      'model',
       'phonon',
       'kitten',
       'kokoro',
@@ -70,7 +71,10 @@ describe('engineRegistry', () => {
   });
 
   it('every neural engine has its own runtime size for the voice mode memory fit', () => {
-    const neural = getAllEngines().filter(e => e.id !== 'system');
+    // The model's own voice lives in the loaded chat model: no runtime of its own
+    const neural = getAllEngines().filter(
+      e => e.id !== 'system' && e.id !== 'model',
+    );
     expect(Object.keys(TTS_ENGINE_RUNTIME_BYTES).sort()).toEqual(
       neural.map(e => e.id).sort(),
     );

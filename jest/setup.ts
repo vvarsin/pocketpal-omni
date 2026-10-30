@@ -79,7 +79,10 @@ require('react-native').Keyboard.addListener = () => ({remove: () => {}});
 
 jest.mock('../src/specs/NativeNavigationBar', () => ({
   __esModule: true,
-  default: {setNavigationBarDark: jest.fn()},
+  default: {
+    setNavigationBarDark: jest.fn(),
+    getWallpaperPalette: jest.fn(() => Promise.resolve({})),
+  },
 }));
 
 // Mock NativeHardwareInfo TurboModule

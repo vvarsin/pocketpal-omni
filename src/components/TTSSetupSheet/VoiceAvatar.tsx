@@ -9,6 +9,7 @@ const ENGINE_STOPS: Record<EngineId, [string, string, string]> = {
   supertonic: ['#A4C5FF', '#1E4DF6', '#0B2A8C'],
   phonon: ['#B5EDE5', '#0E9F8E', '#08695E'],
   system: ['#D7DCE3', '#7B8896', '#3D4651'],
+  model: ['#F8BBD9', '#C2185B', '#7A0E3A'],
 };
 
 const hash = (s: string): number => {

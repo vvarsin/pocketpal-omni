@@ -13,6 +13,8 @@ export {KITTEN_VOICES} from './engines/kitten/voices';
 export {PhononEngine, getPhononSupport} from './engines/phonon';
 export type {PhononProgressCallback} from './engines/phonon';
 export {PHONON_VOICES} from './engines/phonon/voices';
+export {ModelVoiceEngine} from './engines/model';
+export {MODEL_VOICES} from './engines/model/voices';
 export {getEngine, getNeuralEngine, getAllEngines} from './engineRegistry';
 export {ttsRuntime} from './runtime';
 export {hasVoiceFile, ensureVoiceFile} from './voiceFiles';

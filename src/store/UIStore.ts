@@ -9,6 +9,7 @@ import {
   type AvailableLanguage,
 } from '../locales';
 import {ErrorState} from '../utils/errors';
+import type {WallpaperPalette} from '../theme/wallpaperColors';
 import {
   INITIAL_ONBOARDING_STATE,
   type OnboardingState,
@@ -47,6 +48,29 @@ export class UIStore {
   }
 
   displayMemUsage = false;
+
+  // Android 12+: take the accent colors from the phone's wallpaper
+  // (Material You). The palette itself is read from the system at runtime.
+  useWallpaperColors = true;
+  wallpaperPalette: WallpaperPalette | null = null;
+
+  get activeWallpaperPalette(): WallpaperPalette | null {
+    return this.useWallpaperColors ? this.wallpaperPalette : null;
+  }
+
+  setUseWallpaperColors(value: boolean) {
+    runInAction(() => {
+      this.useWallpaperColors = value;
+    });
+  }
+
+  /** The system palette as read by useNavigationBarAppearance; empty → none. */
+  setWallpaperPalette(palette: WallpaperPalette | null) {
+    runInAction(() => {
+      this.wallpaperPalette =
+        palette && Object.keys(palette).length > 0 ? palette : null;
+    });
+  }
 
   iOSBackgroundDownloading = true;
 
@@ -115,6 +139,7 @@ export class UIStore {
       properties: [
         'pageStates',
         'colorScheme',
+        'useWallpaperColors',
         'autoNavigatetoChat',
         'displayMemUsage',
         'benchmarkShareDialog',

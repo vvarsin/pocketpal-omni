@@ -113,6 +113,186 @@ index a11a0d5..86e119c 100644
 +
      extern ContextManager<rnllama::llama_rn_context> g_llamaContexts;
  }
+diff --git a/node_modules/llama.rn/cpp/jsi/JSINativeHeaders.h b/node_modules/llama.rn/cpp/jsi/JSINativeHeaders.h
+index e304ce6..1f8d34c 100644
+--- a/node_modules/llama.rn/cpp/jsi/JSINativeHeaders.h
++++ b/node_modules/llama.rn/cpp/jsi/JSINativeHeaders.h
+@@ -15,6 +15,11 @@
+ #endif
+ #include <rnllama/json-schema-to-grammar.h>
+ #include <rnllama/nlohmann/json.hpp>
++#if __has_include(<rnllama/mtmd-helper.h>)
++#include <rnllama/mtmd.h>
++#include <rnllama/mtmd-helper.h>
++#define RNLLAMA_HAS_SPEECH_OUTPUT 1
++#endif
+ #else
+ #include "rn-llama.h"
+ #include "rn-completion.h"
+@@ -28,5 +33,8 @@
+ #define RNLLAMA_HAS_COMMON_JSON 1
+ #include "json-schema-to-grammar.h"
+ #include "nlohmann/json.hpp"
++#include "tools/mtmd/mtmd.h"
++#include "tools/mtmd/mtmd-helper.h"
++#define RNLLAMA_HAS_SPEECH_OUTPUT 1
+ 
+ #endif
+diff --git a/node_modules/llama.rn/src/jsi.ts b/node_modules/llama.rn/src/jsi.ts
+index 5a83ed7..6b3a1f2 100644
+--- a/node_modules/llama.rn/src/jsi.ts
++++ b/node_modules/llama.rn/src/jsi.ts
+@@ -16,6 +16,9 @@ import type {
+   NativeBenchResult,
+   JinjaFormattedChatResult,
+   ParallelStatus,
++  SpeechOutputSupport,
++  GenerateSpeechParams,
++  SpeechResult,
+ } from './types'
+ 
+ declare global {
+@@ -217,6 +220,12 @@ declare global {
+   ) => Promise<Float32Array>
+   var llamaGetAudioSampleRate: (contextId: number) => Promise<number>
+   var llamaReleaseVocoder: (contextId: number) => Promise<void>
++  var llamaGetSpeechOutputSupport:
++    | ((contextId: number) => Promise<SpeechOutputSupport>)
++    | undefined
++  var llamaGenerateSpeech:
++    | ((contextId: number, params: GenerateSpeechParams) => Promise<SpeechResult>)
++    | undefined
+   var llamaClearCache: (contextId: number, clearData: boolean) => Promise<void>
+ 
+   // Parallel decoding
+diff --git a/node_modules/llama.rn/src/types.ts b/node_modules/llama.rn/src/types.ts
+index 64f5bc7..3296b2f 100644
+--- a/node_modules/llama.rn/src/types.ts
++++ b/node_modules/llama.rn/src/types.ts
+@@ -934,3 +934,31 @@ export type ParallelStatus = {
+   queued_requests: number
+   requests: ParallelRequestStatus[]
+ }
++
++export type SpeechOutputSupport = {
++  supported: boolean
++  sampleRate: number
++}
++
++export type GenerateSpeechParams = {
++  text: string
++  /** WAV file to write (16-bit PCM, mono) */
++  out_path: string
++  /** Language code the "tts" template takes, default "en" */
++  language?: string
++  /** Model-dependent voice name, e.g. "female" / "male" for LFM3 */
++  voice?: string
++  /** Audio frames before the speech is cut, default 1500 */
++  max_frames?: number
++  /** < 0 for random */
++  seed?: number
++}
++
++export type SpeechResult = {
++  path: string
++  sampleRate: number
++  samples: number
++  frames: number
++  interrupted: boolean
++  truncated: boolean
++}
+diff --git a/node_modules/llama.rn/lib/typescript/index.d.ts b/node_modules/llama.rn/lib/typescript/index.d.ts
+index aa0e7c3..f0e8dda 100644
+--- a/node_modules/llama.rn/lib/typescript/index.d.ts
++++ b/node_modules/llama.rn/lib/typescript/index.d.ts
+@@ -1,5 +1,5 @@
+ import './jsi';
+-import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, DecisionModelType, DecisionReadout, DecisionValue, DecisionContent, DecisionChoiceQuestion, DecisionScoreQuestion, DecisionNoulQuestion, DecisionQuestion, DecisionQuestions, DecisionRequest, DecisionChoiceAnswer, DecisionScoreAnswer, DecisionNoulAnswer, DecisionAnswer, DecisionAnswerOf, DecisionResult, NativeDecisionResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus } from './types';
++import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, DecisionModelType, DecisionReadout, DecisionValue, DecisionContent, DecisionChoiceQuestion, DecisionScoreQuestion, DecisionNoulQuestion, DecisionQuestion, DecisionQuestions, DecisionRequest, DecisionChoiceAnswer, DecisionScoreAnswer, DecisionNoulAnswer, DecisionAnswer, DecisionAnswerOf, DecisionResult, NativeDecisionResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, SpeechOutputSupport, GenerateSpeechParams, SpeechResult } from './types';
+ import type { SpeakerPayload } from './tts-voices';
+ export type RNLlamaMessagePart = {
+     type: string;
+@@ -18,7 +18,7 @@ export type RNLlamaOAICompatibleMessage = {
+     content?: string | RNLlamaMessagePart[];
+     reasoning_content?: string;
+ };
+-export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, DecisionModelType, DecisionReadout, DecisionValue, DecisionContent, DecisionChoiceQuestion, DecisionScoreQuestion, DecisionNoulQuestion, DecisionQuestion, DecisionQuestions, DecisionRequest, DecisionChoiceAnswer, DecisionScoreAnswer, DecisionNoulAnswer, DecisionAnswer, DecisionAnswerOf, DecisionResult, NativeDecisionResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, };
++export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, DecisionModelType, DecisionReadout, DecisionValue, DecisionContent, DecisionChoiceQuestion, DecisionScoreQuestion, DecisionNoulQuestion, DecisionQuestion, DecisionQuestions, DecisionRequest, DecisionChoiceAnswer, DecisionScoreAnswer, DecisionNoulAnswer, DecisionAnswer, DecisionAnswerOf, DecisionResult, NativeDecisionResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, SpeechOutputSupport, GenerateSpeechParams, SpeechResult, };
+ export declare const RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER = "<__media__>";
+ export type { TTSCapabilities } from './tts';
+ export { lookupVoice as getTTSVoice, listVoices as listTTSVoices, listLanguages as listTTSLanguages, } from './tts-voices';
+@@ -282,6 +282,17 @@ export declare class LlamaContext {
+         audio: boolean;
+     }>;
+     releaseMultimodal(): Promise<void>;
++    /**
++     * Whether the loaded projector can speak (an omni model with an audio
++     * generator, e.g. LFM3-Omni). Needs initMultimodal() first.
++     */
++    getSpeechOutputSupport(): Promise<SpeechOutputSupport>;
++    /**
++     * Speak `text` with the model's own voice and write a 16-bit mono WAV to
++     * `out_path`. Runs on the completion's sequence, so the prompt cache starts
++     * over. stopCompletion() interrupts it.
++     */
++    generateSpeech(params: GenerateSpeechParams): Promise<SpeechResult>;
+     /**
+      * Attach a codec / vocoder GGUF to this context, enabling the TTS API.
+      *
+diff --git a/node_modules/llama.rn/lib/typescript/types.d.ts b/node_modules/llama.rn/lib/typescript/types.d.ts
+index 4ffc91f..f6fd21c 100644
+--- a/node_modules/llama.rn/lib/typescript/types.d.ts
++++ b/node_modules/llama.rn/lib/typescript/types.d.ts
+@@ -817,4 +817,29 @@ export type ParallelStatus = {
+     queued_requests: number;
+     requests: ParallelRequestStatus[];
+ };
++export type SpeechOutputSupport = {
++    supported: boolean;
++    sampleRate: number;
++};
++export type GenerateSpeechParams = {
++    text: string;
++    /** WAV file to write (16-bit PCM, mono) */
++    out_path: string;
++    /** Language code the "tts" template takes, default "en" */
++    language?: string;
++    /** Model-dependent voice name, e.g. "female" / "male" for LFM3 */
++    voice?: string;
++    /** Audio frames before the speech is cut, default 1500 */
++    max_frames?: number;
++    /** < 0 for random */
++    seed?: number;
++};
++export type SpeechResult = {
++    path: string;
++    sampleRate: number;
++    samples: number;
++    frames: number;
++    interrupted: boolean;
++    truncated: boolean;
++};
+ //# sourceMappingURL=types.d.ts.map
+\ No newline at end of file
+diff --git a/node_modules/llama.rn/lib/typescript/jsi.d.ts b/node_modules/llama.rn/lib/typescript/jsi.d.ts
+index 1173e79..1cd17e2 100644
+--- a/node_modules/llama.rn/lib/typescript/jsi.d.ts
++++ b/node_modules/llama.rn/lib/typescript/jsi.d.ts
+@@ -1,4 +1,4 @@
+-import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingParams, NativeSessionLoadResult, NativeRerankParams, NativeRerankResult, DecisionRequest, NativeDecisionResult, NativeQueuedDecisionResult, NativeBackendDeviceInfo, NativeBenchResult, JinjaFormattedChatResult, ParallelStatus } from './types';
++import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingParams, NativeSessionLoadResult, NativeRerankParams, NativeRerankResult, DecisionRequest, NativeDecisionResult, NativeQueuedDecisionResult, NativeBackendDeviceInfo, NativeBenchResult, JinjaFormattedChatResult, ParallelStatus, SpeechOutputSupport, GenerateSpeechParams, SpeechResult } from './types';
+ declare global {
+     var llamaInitContext: (contextId: number, params: NativeContextParams, onProgress?: (progress: number) => void) => Promise<any>;
+     var llamaReleaseContext: (contextId: number) => Promise<void>;
+@@ -106,6 +106,8 @@ declare global {
+     var llamaDecodeAudioEmbeddings: (contextId: number, embeddings: Float32Array | number[], embeddingDim: number) => Promise<Float32Array>;
+     var llamaGetAudioSampleRate: (contextId: number) => Promise<number>;
+     var llamaReleaseVocoder: (contextId: number) => Promise<void>;
++    var llamaGetSpeechOutputSupport: ((contextId: number) => Promise<SpeechOutputSupport>) | undefined;
++    var llamaGenerateSpeech: ((contextId: number, params: GenerateSpeechParams) => Promise<SpeechResult>) | undefined;
+     var llamaClearCache: (contextId: number, clearData: boolean) => Promise<void>;
+     var llamaEnableParallelMode: (contextId: number, params: {
+         enabled: boolean;
 diff --git a/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp b/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp
 index a35bbf0..df5bfb4 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp
@@ -250,7 +430,7 @@ index eb52272..9ff97ad 100644
      void invokeAsyncTracked(
          std::shared_ptr<react::CallInvoker> callInvoker,
 diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
-index ffd7942..a2c5190 100644
+index ffd7942..1704bca 100644
 --- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
 +++ b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
 @@ -13,11 +13,13 @@
@@ -587,7 +767,152 @@ index ffd7942..a2c5190 100644
                       return [](jsi::Runtime& rt) { return jsi::Value::undefined(); };
                   }, -1, false);  // contextId=-1 (not tracked), trackTask=false
              }
-@@ -2040,7 +2063,7 @@ namespace rnllama_jsi {
+@@ -2021,6 +2044,144 @@ namespace rnllama_jsi {
+         );
+         runtime.global().setProperty(runtime, "llamaIsVocoderEnabled", isVocoderEnabled);
+ 
++        // Speech output of an omni model whose projector carries an audio
++        // generator (LFM3-Omni / LFM3-Audio), driven like llama.cpp's tools/tts:
++        // the "tts" chat template renders the text, the backbone hidden state
++        // feeds the audio generator frame by frame, the WAV goes to out_path.
++        // The speech runs on the completion's sequence, so the cache starts over
++        // before and after it.
++#if defined(RNLLAMA_HAS_SPEECH_OUTPUT)
++        auto getSpeechOutputSupport = jsi::Function::createFromHostFunction(runtime,
++            jsi::PropNameID::forAscii(runtime, "llamaGetSpeechOutputSupport"),
++            1,
++            [callInvoker](jsi::Runtime& runtime, const jsi::Value& thisValue, const jsi::Value* arguments, size_t count) -> jsi::Value {
++                int contextId = (int)arguments[0].asNumber();
++                return createPromiseTask(runtime, callInvoker, [contextId]() -> PromiseResultGenerator {
++                    auto ctx = getContextOrThrow(contextId);
++                    mtmd_context * mctx = ctx->decisionMtmdContext();
++                    const mtmd_gen_audio_info info = mctx ? mtmd_gen_audio_get_info(mctx) : mtmd_gen_audio_info{};
++                    const bool supported = mctx && info.type != MTMD_GEN_AUDIO_TYPE_NONE;
++                    json res = json::object({
++                        {"supported", supported},
++                        {"sampleRate", supported ? info.sample_rate : 0},
++                    });
++                    return [res](jsi::Runtime& rt) { return fromJson(rt, res); };
++                }, contextId);
++            }
++        );
++        runtime.global().setProperty(runtime, "llamaGetSpeechOutputSupport", getSpeechOutputSupport);
++
++        auto generateSpeech = jsi::Function::createFromHostFunction(runtime,
++            jsi::PropNameID::forAscii(runtime, "llamaGenerateSpeech"),
++            2,
++            [callInvoker](jsi::Runtime& runtime, const jsi::Value& thisValue, const jsi::Value* arguments, size_t count) -> jsi::Value {
++                int contextId = (int)arguments[0].asNumber();
++                json opts = toJson(runtime, arguments[1]);
++                return createPromiseTask(runtime, callInvoker, [contextId, opts]() -> PromiseResultGenerator {
++                    auto ctx = getContextOrThrow(contextId);
++                    ContextClaim claim(ctx);
++
++                    const std::string text     = opts.value("text", std::string());
++                    const std::string out_path = opts.value("out_path", std::string());
++                    const std::string language = opts.value("language", std::string("en"));
++                    const std::string voice    = opts.value("voice", std::string());
++                    const int max_frames       = opts.value("max_frames", 1500);
++                    const int64_t seed         = opts.value("seed", (int64_t) -1);
++                    if (text.empty()) throw std::runtime_error("text is required");
++                    if (out_path.empty()) throw std::runtime_error("out_path is required");
++
++                    mtmd_context * mctx = ctx->decisionMtmdContext();
++                    if (!mctx || mtmd_gen_audio_get_info(mctx).type == MTMD_GEN_AUDIO_TYPE_NONE) {
++                        throw std::runtime_error("The loaded projector has no speech output");
++                    }
++                    std::string prompt = common_chat_get_tts_prompt(ctx->templates.get(), text, language, voice);
++                    if (prompt.empty()) {
++                        throw std::runtime_error("The model has no \"tts\" chat template");
++                    }
++
++                    llama_context * lctx = ctx->ctx;
++                    ctx->clearCache(false);
++                    llama_set_embeddings(lctx, true);
++                    // Restores the text mode on every exit, a throw included
++                    struct SpeechScope {
++                        rnllama::llama_rn_context * c;
++                        ~SpeechScope() {
++                            llama_set_embeddings(c->ctx, false);
++                            c->clearCache(false);
++                        }
++                    } scope{ctx.get()};
++                    if (ctx->completion) ctx->completion->is_interrupted = false;
++
++                    std::unique_ptr<mtmd_helper_gen_audio, void (*)(mtmd_helper_gen_audio *)> gen(
++                        mtmd_helper_gen_audio_init(lctx, mctx), mtmd_helper_gen_audio_free);
++                    if (!gen) throw std::runtime_error("Failed to start the audio generator");
++
++                    mtmd_helper_gen_audio_inp inp = mtmd_helper_gen_audio_inp_default();
++                    inp.seq_id     = 0;
++                    inp.prompt     = prompt.c_str();
++                    inp.prompt_len = prompt.size();
++                    inp.lang       = language.c_str();
++                    inp.voice      = voice.empty() ? nullptr : voice.c_str();
++                    inp.seed       = seed < 0 ? UINT32_MAX : (uint32_t) seed;
++                    inp.out_type   = MTMD_HELPER_GEN_AUDIO_OUTTYPE_WAV;
++                    if (mtmd_helper_gen_audio_set_input(gen.get(), &inp) != 0) {
++                        throw std::runtime_error("The audio generator rejected the prompt");
++                    }
++
++                    const int32_t n_batch = (int32_t) llama_n_batch(lctx);
++                    for (;;) {
++                        const int32_t ret = mtmd_helper_gen_audio_step_prompt(gen.get(), n_batch);
++                        if (ret < 0) throw std::runtime_error("Speech prompt processing failed");
++                        if (ret == 0) break;
++                    }
++
++                    const float * h_state = llama_get_embeddings_ith(lctx, -1);
++                    int n_frames = 0;
++                    bool stop = false;
++                    bool interrupted = false;
++                    while (!stop && n_frames < max_frames) {
++                        if ((ctx->completion && ctx->completion->is_interrupted) || ctx->abortRequested()) {
++                            interrupted = true;
++                            break;
++                        }
++                        const float * h_next = nullptr;
++                        if (mtmd_helper_gen_audio_step_gen(gen.get(), LLAMA_TOKEN_NULL, h_state, &h_next, &stop) != 0) {
++                            throw std::runtime_error("Speech generation failed at frame " + std::to_string(n_frames));
++                        }
++                        if (!h_next) break;
++                        h_state = h_next;
++                        n_frames++;
++                    }
++
++                    int32_t sample_rate = 0;
++                    const char * data = nullptr;
++                    size_t data_len = 0;
++                    int64_t n_samples = 0;
++                    if (mtmd_helper_gen_audio_get_output(gen.get(), &sample_rate, &data, &data_len, &n_samples) != 0) {
++                        throw std::runtime_error("Failed to read the generated audio");
++                    }
++                    std::string path = out_path.rfind("file://", 0) == 0 ? out_path.substr(7) : out_path;
++                    FILE * f = fopen(path.c_str(), "wb");
++                    if (!f) throw std::runtime_error("Failed to open " + path);
++                    const size_t written = fwrite(data, 1, data_len, f);
++                    fclose(f);
++                    if (written != data_len) throw std::runtime_error("Failed to write " + path);
++
++                    json res = json::object({
++                        {"path", path},
++                        {"sampleRate", sample_rate},
++                        {"samples", n_samples},
++                        {"frames", n_frames},
++                        {"interrupted", interrupted},
++                        {"truncated", !stop && !interrupted && n_frames >= max_frames},
++                    });
++                    return [res](jsi::Runtime& rt) { return fromJson(rt, res); };
++                }, contextId);
++            }
++        );
++        runtime.global().setProperty(runtime, "llamaGenerateSpeech", generateSpeech);
++#endif
++
+         auto getFormattedAudioCompletion = jsi::Function::createFromHostFunction(runtime,
+             jsi::PropNameID::forAscii(runtime, "llamaGetFormattedAudioCompletion"),
+             4,
+@@ -2040,7 +2201,7 @@ namespace rnllama_jsi {
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
  
                      try {
@@ -596,7 +921,7 @@ index ffd7942..a2c5190 100644
                          json res = json::object({{"prompt", audio_result.prompt}});
                          if (!audio_result.grammar.empty()) {
                              res["grammar"] = audio_result.grammar;
-@@ -2066,7 +2089,7 @@ namespace rnllama_jsi {
+@@ -2066,7 +2227,7 @@ namespace rnllama_jsi {
                  return createPromiseTask(runtime, callInvoker, [contextId]() -> PromiseResultGenerator {
                      auto ctx = getContextOrThrow(contextId);
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
@@ -605,7 +930,7 @@ index ffd7942..a2c5190 100644
                      json res = json::object({
                          {"type", cap.type},
                          {"promptKind", cap.prompt_kind},
-@@ -2095,7 +2118,7 @@ namespace rnllama_jsi {
+@@ -2095,7 +2256,7 @@ namespace rnllama_jsi {
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
  
                      try {
@@ -614,7 +939,7 @@ index ffd7942..a2c5190 100644
                          return [audio_data](jsi::Runtime& rt) {
                              return makeFloat32Array(rt, audio_data);
                          };
-@@ -2158,7 +2181,7 @@ namespace rnllama_jsi {
+@@ -2158,7 +2319,7 @@ namespace rnllama_jsi {
                      }
  
                      try {
@@ -623,7 +948,7 @@ index ffd7942..a2c5190 100644
                          json res = json::object({
                              {"codes", r.codes},
                              {"nCodebook", r.n_codebook},
-@@ -2195,14 +2218,14 @@ namespace rnllama_jsi {
+@@ -2195,14 +2356,14 @@ namespace rnllama_jsi {
                      auto ctx = getContextOrThrow(contextId);
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
  
@@ -640,7 +965,7 @@ index ffd7942..a2c5190 100644
                          has_emotion ? opts.emotion : 0.5f, has_emotion, opts.bake);
  
                      const rnllama::rn_speaker * spk = ctx->tts_wrapper->getSpeaker(speakerId);
-@@ -2234,7 +2257,7 @@ namespace rnllama_jsi {
+@@ -2234,7 +2395,7 @@ namespace rnllama_jsi {
                      auto ctx = getContextOrThrow(contextId);
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
  
@@ -649,7 +974,7 @@ index ffd7942..a2c5190 100644
  
                      const rnllama::rn_speaker * spk = ctx->tts_wrapper->getSpeaker(speakerId);
                      if (!spk) throw std::runtime_error("bakeSpeaker: speaker id not found");
-@@ -2283,7 +2306,7 @@ namespace rnllama_jsi {
+@@ -2283,7 +2444,7 @@ namespace rnllama_jsi {
                      if (!ctx->isVocoderEnabled()) throw std::runtime_error("Vocoder is not enabled");
  
                      try {
@@ -658,7 +983,7 @@ index ffd7942..a2c5190 100644
                          return [audio_data](jsi::Runtime& rt) {
                              return makeFloat32Array(rt, audio_data);
                          };
-@@ -2358,19 +2381,9 @@ namespace rnllama_jsi {
+@@ -2358,19 +2519,9 @@ namespace rnllama_jsi {
          llama_log_set(llama_log_callback_default, nullptr);
  
          RequestManager::getInstance().clearAll();
@@ -681,7 +1006,7 @@ index ffd7942..a2c5190 100644
          }
  
          if (contexts.empty()) {
-@@ -2379,12 +2392,9 @@ namespace rnllama_jsi {
+@@ -2379,12 +2530,9 @@ namespace rnllama_jsi {
          }
          ThreadPool::getInstance().shutdown();
  
@@ -711,7 +1036,7 @@ index 7a065cb..5012051 100644
  #if defined(__ANDROID__)
      void setAndroidLoadedLibrary(const std::string& name);
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index 9d1b833..8d17322 100644
+index 11141fd..b362862 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
 @@ -610,7 +610,17 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
@@ -974,7 +1299,7 @@ index 0065b43..122681f 100644
              }
              n_past = new_n_past;
 diff --git a/node_modules/llama.rn/llama-rn.podspec b/node_modules/llama.rn/llama-rn.podspec
-index 413627a..3e4aa61 100644
+index 1362325..1542d02 100644
 --- a/node_modules/llama.rn/llama-rn.podspec
 +++ b/node_modules/llama.rn/llama-rn.podspec
 @@ -7,12 +7,12 @@ base_compiler_flags = "-fno-objc-arc -fvisibility-inlines-hidden -DGGML_USE_CPU
@@ -1002,10 +1327,64 @@ index 413627a..3e4aa61 100644
        "#{llama_cpp}/common/**/*.{h,cpp}",
        "#{llama_cpp}/tools/mtmd/**/*.{h,cpp}",
 diff --git a/node_modules/llama.rn/src/index.ts b/node_modules/llama.rn/src/index.ts
-index 039933f..1fdd5d4 100644
+index 039933f..2750729 100644
 --- a/node_modules/llama.rn/src/index.ts
 +++ b/node_modules/llama.rn/src/index.ts
-@@ -432,6 +432,10 @@ export class LlamaSpeaker {
+@@ -43,6 +43,9 @@ import type {
+   NativeSpeculativeType,
+   ParallelStatus,
+   ParallelRequestStatus,
++  SpeechOutputSupport,
++  GenerateSpeechParams,
++  SpeechResult,
+ } from './types'
+ import { BUILD_NUMBER, BUILD_COMMIT } from './version'
+ import type { SpeakerPayload } from './tts-voices'
+@@ -67,6 +70,9 @@ export type RNLlamaOAICompatibleMessage = {
+ }
+ 
+ export type {
++  SpeechOutputSupport,
++  GenerateSpeechParams,
++  SpeechResult,
+   NativeContextParams,
+   NativeLlamaContext,
+   NativeCompletionParams,
+@@ -182,12 +188,33 @@ const jsiBindingKeys = [
+ type JsiBindingKey = (typeof jsiBindingKeys)[number]
+ type JsiBindings = { [K in JsiBindingKey]: NonNullable<(typeof globalThis)[K]> }
+ 
++// Bindings a native build may leave out (speech output needs the mtmd helper headers)
++const optionalJsiBindingKeys = [
++  'llamaGetSpeechOutputSupport',
++  'llamaGenerateSpeech',
++] as const
++type OptionalJsiBindingKey = (typeof optionalJsiBindingKeys)[number]
++type OptionalJsiBindings = {
++  [K in OptionalJsiBindingKey]?: NonNullable<(typeof globalThis)[K]>
++}
++
+ let jsiBindings: JsiBindings | null = null
++let optionalJsiBindings: OptionalJsiBindings = {}
+ 
+ const bindJsiFromGlobal = () => {
+   const bindings: Partial<JsiBindings> = {}
+   const missing: string[] = []
+ 
++  const optional: OptionalJsiBindings = {}
++  optionalJsiBindingKeys.forEach((key) => {
++    const value = global[key]
++    if (typeof value === 'function') {
++      ;(optional as Record<string, unknown>)[key] = value
++      delete global[key]
++    }
++  })
++  optionalJsiBindings = optional
++
+   jsiBindingKeys.forEach((key) => {
+     const value = global[key]
+     if (typeof value === 'function') {
+@@ -432,6 +459,10 @@ export class LlamaSpeaker {
  export class LlamaContext {
    id: number
  
@@ -1016,7 +1395,7 @@ index 039933f..1fdd5d4 100644
    gpu: boolean = false
  
    reasonNoGPU: string = ''
-@@ -911,6 +915,7 @@ export class LlamaContext {
+@@ -911,6 +942,7 @@ export class LlamaContext {
      params: CompletionParams & { speaker?: LlamaSpeaker },
      callback?: (data: TokenData) => void,
    ): Promise<NativeCompletionResult> {
@@ -1024,7 +1403,7 @@ index 039933f..1fdd5d4 100644
      const nativeParams: NativeCompletionRequestParams & {
        speakerId?: number
      } = {
-@@ -998,11 +1003,16 @@ export class LlamaContext {
+@@ -998,11 +1030,16 @@ export class LlamaContext {
      if (!nativeParams.prompt && !params.embedding && !nativeParams.media_paths)
        throw new Error('Prompt is required')
  
@@ -1043,8 +1422,38 @@ index 039933f..1fdd5d4 100644
      const { llamaStopCompletion } = getJsi()
      return llamaStopCompletion(this.id)
    }
+@@ -1167,6 +1204,29 @@ export class LlamaContext {
+     return await llamaReleaseMultimodal(this.id)
+   }
+ 
++  /**
++   * Whether the loaded projector can speak (an omni model with an audio
++   * generator, e.g. LFM3-Omni). Needs initMultimodal() first.
++   */
++  async getSpeechOutputSupport(): Promise<SpeechOutputSupport> {
++    getJsi()
++    const fn = optionalJsiBindings.llamaGetSpeechOutputSupport
++    if (!fn) return { supported: false, sampleRate: 0 }
++    return await fn(this.id)
++  }
++
++  /**
++   * Speak `text` with the model's own voice and write a 16-bit mono WAV to
++   * `out_path`. Runs on the completion's sequence, so the prompt cache starts
++   * over. stopCompletion() interrupts it.
++   */
++  async generateSpeech(params: GenerateSpeechParams): Promise<SpeechResult> {
++    getJsi()
++    const fn = optionalJsiBindings.llamaGenerateSpeech
++    if (!fn) throw new Error('Speech output is not available in this build')
++    return await fn(this.id, params)
++  }
++
+   /**
+    * Attach a codec / vocoder GGUF to this context, enabling the TTS API.
+    *
 diff --git a/node_modules/llama.rn/vendor/llama.cpp/ggml/src/ggml-metal/ggml-metal-device.m b/node_modules/llama.rn/vendor/llama.cpp/ggml/src/ggml-metal/ggml-metal-device.m
-index d1bce8b..3923ca9 100644
+index 451f652..54fb9ff 100644
 --- a/node_modules/llama.rn/vendor/llama.cpp/ggml/src/ggml-metal/ggml-metal-device.m
 +++ b/node_modules/llama.rn/vendor/llama.cpp/ggml/src/ggml-metal/ggml-metal-device.m
 @@ -508,10 +508,10 @@ ggml_metal_library_t ggml_metal_library_init(ggml_metal_device_t dev) {

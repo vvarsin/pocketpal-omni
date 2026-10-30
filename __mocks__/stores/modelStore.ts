@@ -45,6 +45,13 @@ class MockModelStore {
   context: LlamaContext | undefined = undefined;
   engine: CompletionEngine | undefined = undefined;
   isMultimodalActive: boolean = false;
+  multimodalMediaCaps = {audioInput: false, speechOutput: false};
+  get isAudioInputActive(): boolean {
+    return this.isMultimodalActive && this.multimodalMediaCaps.audioInput;
+  }
+  get isSpeechOutputActive(): boolean {
+    return this.isMultimodalActive && this.multimodalMediaCaps.speechOutput;
+  }
   activeContextSettings: ContextInitParams | undefined = undefined;
   activeRemoteBinding: RemoteSessionBinding | undefined = undefined;
 

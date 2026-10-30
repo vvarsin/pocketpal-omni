@@ -10,10 +10,19 @@ import type {
  * rest of the app doesn't touch that package directly.
  */
 
-export type EngineId = 'kitten' | 'kokoro' | 'supertonic' | 'phonon' | 'system';
+export type EngineId =
+  | 'kitten'
+  | 'kokoro'
+  | 'supertonic'
+  | 'phonon'
+  | 'system'
+  | 'model';
 
-/** Engines whose model files the app downloads and manages. */
-export type NeuralEngineId = Exclude<EngineId, 'system'>;
+/**
+ * Engines whose model files the app downloads and manages. `model` is the
+ * loaded chat model speaking for itself (LFM3-Omni), so it has none.
+ */
+export type NeuralEngineId = Exclude<EngineId, 'system' | 'model'>;
 
 /**
  * Discrete set of diffusion-step counts exposed in the Supertonic UI.

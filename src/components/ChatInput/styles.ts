@@ -190,6 +190,15 @@ export const createStyles = ({
       borderRadius: 8,
       backgroundColor: theme.colors.surfaceVariant,
     },
+    audioPreview: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 4,
+    },
+    audioPreviewName: {
+      color: theme.colors.onSurfaceVariant,
+      marginTop: -8,
+    },
     removeImageButton: {
       position: 'absolute',
       top: 0,

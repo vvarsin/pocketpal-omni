@@ -11,6 +11,14 @@ import {
   Image,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {
+  errorCodes,
+  isErrorWithCode,
+  keepLocalCopy,
+  pick,
+  types,
+  type FileToCopy,
+} from '@react-native-documents/picker';
 import {useCameraPermission} from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
@@ -18,6 +26,7 @@ import {observer} from 'mobx-react';
 import {IconButton, Text} from 'react-native-paper';
 
 import {hasVideoCapability} from '../../utils/pal-capabilities';
+import {isAudioAttachment} from '../../utils/mediaAttachments';
 
 import {
   ChevronUpIcon,
@@ -378,6 +387,50 @@ export const ChatInput = observer(
       }
     };
 
+    // Attach sound files for a model that hears audio (e.g. LFM3-Omni)
+    const handleSelectAudio = async () => {
+      try {
+        modelStore.disableAutoRelease('audio-picker');
+        const picked = await pick({
+          type: [types.audio],
+          allowMultiSelection: true,
+        });
+        const files = picked.filter(f => f.uri);
+        if (files.length > 0) {
+          const copies = await keepLocalCopy({
+            files: files.map(f => ({
+              uri: f.uri,
+              fileName: f.name ?? `audio-${Date.now()}.wav`,
+            })) as [FileToCopy, ...FileToCopy[]],
+            destination: 'cachesDirectory',
+          });
+          const uris = copies.flatMap(c =>
+            c.status === 'success' ? [c.localUri] : [],
+          );
+          const playable = uris.filter(isAudioAttachment);
+          if (playable.length < uris.length) {
+            Alert.alert(
+              l10n.components.chatInput.audioFormatTitle,
+              l10n.components.chatInput.audioFormatMessage,
+            );
+          }
+          if (playable.length > 0) {
+            setSelectedImages([...selectedImages, ...playable]);
+          }
+        }
+      } catch (error) {
+        if (
+          !isErrorWithCode(error) ||
+          error.code !== errorCodes.OPERATION_CANCELED
+        ) {
+          console.error('Error selecting audio:', error);
+        }
+      } finally {
+        setShowImageUploadMenu(false);
+        modelStore.enableAutoRelease('audio-picker');
+      }
+    };
+
     // Remove an image from the selection
     const handleRemoveImage = (index: number) => {
       const newImages = [...selectedImages];
@@ -468,20 +521,46 @@ export const ChatInput = observer(
                 contentContainerStyle={styles.imageScrollContent}>
                 {selectedImages.map((uri, index) => (
                   <View key={`${uri}-${index}`} style={styles.imageContainer}>
-                    <Image
-                      source={{uri}}
-                      style={styles.previewImage}
-                      accessibilityLabel={`Image preview ${index + 1} of ${
-                        selectedImages.length
-                      }`}
-                    />
+                    {isAudioAttachment(uri) ? (
+                      <View
+                        style={[
+                          styles.previewImage,
+                          styles.audioPreview,
+                          {backgroundColor: theme.colors.surfaceVariant},
+                        ]}
+                        accessibilityLabel={`Audio ${index + 1} of ${
+                          selectedImages.length
+                        }`}>
+                        <IconButton
+                          icon="music-note"
+                          size={22}
+                          iconColor={theme.colors.primary}
+                        />
+                        <Text
+                          variant="labelSmall"
+                          numberOfLines={1}
+                          style={styles.audioPreviewName}>
+                          {decodeURIComponent(uri.split('/').pop() ?? '')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Image
+                        source={{uri}}
+                        style={styles.previewImage}
+                        accessibilityLabel={`Image preview ${index + 1} of ${
+                          selectedImages.length
+                        }`}
+                      />
+                    )}
                     <IconButton
                       icon="close-circle"
                       size={20}
                       iconColor={theme.colors.error}
                       style={styles.removeImageButton}
                       onPress={() => handleRemoveImage(index)}
-                      accessibilityLabel={`Remove image ${index + 1}`}
+                      accessibilityLabel={`Remove ${
+                        isAudioAttachment(uri) ? 'audio' : 'image'
+                      } ${index + 1}`}
                     />
                   </View>
                 ))}
@@ -580,6 +659,13 @@ export const ChatInput = observer(
                       icon="image"
                       onPress={handleSelectImages}
                     />
+                    {modelStore.isAudioInputActive && (
+                      <Menu.Item
+                        label={l10n.components.chatInput.attachAudio}
+                        icon="music-note"
+                        onPress={handleSelectAudio}
+                      />
+                    )}
                   </Menu>
                 )}
 

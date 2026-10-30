@@ -1,5 +1,6 @@
 import {KittenEngine} from './engines/kitten';
 import {KokoroEngine} from './engines/kokoro';
+import {ModelVoiceEngine} from './engines/model';
 import {PhononEngine} from './engines/phonon';
 import {SupertonicEngine} from './engines/supertonic';
 import {SystemEngine} from './engines/system';
@@ -10,6 +11,7 @@ const supertonicEngine = new SupertonicEngine();
 const kokoroEngine = new KokoroEngine();
 const kittenEngine = new KittenEngine();
 const phononEngine = new PhononEngine();
+const modelVoiceEngine = new ModelVoiceEngine();
 
 const neuralEngines: Record<NeuralEngineId, NeuralEngine> = {
   kitten: kittenEngine,
@@ -21,6 +23,7 @@ const neuralEngines: Record<NeuralEngineId, NeuralEngine> = {
 const engines: Record<EngineId, Engine> = {
   ...neuralEngines,
   system: systemEngine,
+  model: modelVoiceEngine,
 };
 
 export const getEngine = (id: EngineId): Engine => {
@@ -41,9 +44,10 @@ export const getNeuralEngine = (id: NeuralEngineId): NeuralEngine => {
 
 /**
  * All engines in the order they're rendered in the setup sheet:
- * Phonon, Kitten, Kokoro, Supertonic, System.
+ * the model's own voice, Phonon, Kitten, Kokoro, Supertonic, System.
  */
 export const getAllEngines = (): Engine[] => [
+  modelVoiceEngine,
   phononEngine,
   kittenEngine,
   kokoroEngine,

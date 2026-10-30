@@ -82,7 +82,13 @@ class MockTTSStore {
   retryPhononDownload: jest.Mock;
   deletePhonon: jest.Mock;
 
+  // Tests set this to offer the loaded model's own voice (LFM3-Omni)
+  modelVoiceOffered = false;
+
   isEngineOffered(id: string): boolean {
+    if (id === 'model') {
+      return this.modelVoiceOffered;
+    }
     return id !== 'phonon' || this.phononSupported;
   }
 
